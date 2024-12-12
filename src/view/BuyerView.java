@@ -1,8 +1,10 @@
+package view;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
-public class CheckoutScreen extends JFrame {
+public class BuyerView extends JFrame {
 
     private JButton btnAdd = new JButton("Add a new item");
     private JButton btnPay = new JButton("Finish and Pay");
@@ -12,11 +14,12 @@ public class CheckoutScreen extends JFrame {
     private JTable tblItems = new JTable(items); // null, new String[]{"ProductID", "Product Name", "Price", "Quantity", "Cost"});
     private JLabel labTotal = new JLabel("Total: ");
 
-    public CheckoutScreen() {
+    public BuyerView() {
 
         this.setTitle("Checkout");
         this.setLayout(new BoxLayout(this.getContentPane(), BoxLayout.Y_AXIS));
         this.setSize(400, 600);
+        this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
 
         items.addColumn("Product ID");
@@ -58,5 +61,10 @@ public class CheckoutScreen extends JFrame {
     public void addRow(Object[] row) {
         items.addRow(row);              // add a row to list of item!
     //    items.fireTableDataChanged();
+    }
+    public void clearOrder(){
+        DefaultTableModel model = (DefaultTableModel) tblItems.getModel();
+        model.setRowCount(0); // clear table
+        getLabTotal().setText("Total: $0.0");
     }
 }
