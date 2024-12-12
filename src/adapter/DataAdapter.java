@@ -103,6 +103,109 @@ public class DataAdapter implements DataAdapterInterface {
         }
     }
 
+    public List<Product> findProductWithHTTP(Integer productID, String name, Double priceLessThan, Double priceGreaterThan) {
+        List<Product> products = new ArrayList<>();
+
+        try {
+            StringBuilder sql = new StringBuilder("SELECT * FROM Product WHERE 1=1"); // Start with a always-true condition
+            List<Object> params = new ArrayList<>(); // List to hold parameters
+
+
+            if (productID != null) {
+                sql.append(" AND ProductID = ?");
+                params.add(productID);
+            }
+
+            if (name != null) {
+                sql.append(" AND Name LIKE ?"); // Use LIKE for partial string matching
+                params.add("%" + name + "%");  // Add wildcards
+            }
+
+            if (priceLessThan != null) {
+                sql.append(" AND Unit_Price < ?");
+                params.add(priceLessThan);
+            }
+
+            if (priceGreaterThan != null) {
+                sql.append(" AND Unit_Price > ?");
+                params.add(priceGreaterThan);
+            }
+
+
+            PreparedStatement statement = connection.prepareStatement(sql.toString());
+
+
+            // Set parameters
+            for (int i = 0; i < params.size(); i++) {
+                Object param = params.get(i);
+                if (param instanceof Integer) {
+                    statement.setInt(i + 1, (Integer) param);
+                } else if (param instanceof String) {
+                    statement.setString(i + 1, (String) param);
+                } else if (param instanceof Double) {
+                    statement.setDouble(i + 1, (Double) param);
+                }
+                // ... add handling for other data types if needed ...
+
+
+            }
+
+
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                Product product = new Product();
+                product.setProductID(rs.getInt("ProductID"));
+                product.setName(rs.getString("Name"));
+                product.setPrice(rs.getDouble("Unit_price"));
+                product.setCategory(rs.getString("Category"));
+                product.setSupplierID(rs.getInt("SupplierID"));
+                product.setDescription(rs.getString("Description"));
+                product.setQuantity(rs.getInt("Quantity"));
+                products.add(product);
+            }
+
+
+            rs.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            System.err.println("Error searching for products: " + e.getMessage());
+            e.printStackTrace();
+            // Handle the error appropriately (e.g., return null or an empty list)
+        }
+
+
+        return products;
+    }
+
+    public List<Product> loadProductsByPriceRange(double minPrice, double maxPrice) {
+        List<Product> products = new ArrayList<>();
+
+        String query = "SELECT * FROM Product WHERE Unit_price BETWEEN ? AND ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setDouble(1, minPrice);
+            statement.setDouble(2, maxPrice);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Product product = new Product();
+                    product.setProductID(resultSet.getInt("productID"));
+                    product.setName(resultSet.getString("name"));
+                    product.setCategory(resultSet.getString("category"));
+                    product.setPrice(resultSet.getDouble("Unit_price"));
+                    product.setQuantity(resultSet.getInt("quantity"));
+                    product.setDescription(resultSet.getString("description"));
+                    products.add(product);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // Consider logging the exception in a production system
+        }
+
+        return products;
+    }
+
     public boolean saveProduct(Product product) {
         try {
             String query;
@@ -148,84 +251,10 @@ public class DataAdapter implements DataAdapterInterface {
 
 
     public Order loadOrder(int id) {
-//        try {
-//            Order order = null;
-//
-//            // Load main order details
-//            PreparedStatement statement = connection.prepareStatement("SELECT * FROM OrderTable WHERE OrderID = ?");
-//            statement.setInt(1, id);
-//            ResultSet resultSet = statement.executeQuery();
-//
-//            if (resultSet.next()) {
-//                order = new Order();
-//                order.setOrderID(resultSet.getInt("OrderID"));
-//                order.setCustomerID(resultSet.getInt("CustomerID")); // CustomerID in OrderTable
-//                order.setTotalCost(resultSet.getDouble("TotalPrice")); // TotalPrice in OrderTable
-//                order.setDate(resultSet.getTimestamp("OrderDate"));// OrderDate in OrderTable
-////                order.setEmployeeID(resultSet.getInt("EmployeeID"));
-//
-//                resultSet.close();
-//                statement.close();
-//            }
-//            //Load order items / order lines after main order is loaded
-//            if (order != null) { // Check if the order was loaded successfully
-//                statement = connection.prepareStatement("SELECT * FROM OrderItem WHERE OrderID = ?");
-//                statement.setInt(1, order.getOrderID()); // Using the loaded order's ID
-//                resultSet = statement.executeQuery();
-//
-//                List<OrderItem> orderItems = new ArrayList<>(); // Use a List to store OrderItems
-//
-//                while (resultSet.next()) {
-//                    OrderItem orderItem = new OrderItem();
-//                    orderItem.setOrderItemID(resultSet.getInt("OrderItemID"));
-//                    orderItem.setOrderID(resultSet.getInt("OrderID"));
-//                    orderItem.setProductID(resultSet.getInt("ProductID"));
-//                    orderItem.setQuantity(resultSet.getInt("Quantity"));
-//                    orderItem.setCost(resultSet.getDouble("Total_Cost"));
-//                    orderItems.add(orderItem); // Add the created structure.OrderItem to the list
-//                }
-//
-//                order.setLines(orderItems); // Assuming you have a setter for the order items list
-//                resultSet.close();
-//                statement.close();
-//            }
-//
-//            return order; //return order and order items
-//
-//        } catch (SQLException e) {
-//            System.err.println("Database access error in loadOrder!");
-//            e.printStackTrace();
-//            return null;
-//        }
         return null;
     }
 
     public List<Order> loadAllOrders() {
-//        try {
-//            List<Order> orders = new ArrayList<>();
-//            Statement statement = connection.createStatement();
-//            ResultSet resultSet = statement.executeQuery("SELECT * FROM OrderTable"); // Select all orders
-//
-//            while (resultSet.next()) {
-//                Order order = new Order();
-//                order.setOrderID(resultSet.getInt("OrderID"));
-//                order.setCustomerID(resultSet.getInt("CustomerID"));
-//                order.setDate(resultSet.getTimestamp("OrderDate"));  // Use getTimestamp for DATETIME
-////                order.setEmployeeID(resultSet.getInt("EmployeeID"));
-//                order.setTotalCost(resultSet.getDouble("TotalPrice"));
-//
-//                orders.add(order); // Add each loaded order to the List
-//            }
-//
-//            resultSet.close();
-//            statement.close();
-//            return orders; // Return the list of orders
-//
-//        } catch (SQLException e) {
-//            System.err.println("Database access error in loadAllOrders!");
-//            e.printStackTrace();
-//            return null; //Return null in case of error
-//        }
         return null;
     }
 
@@ -353,6 +382,81 @@ public class DataAdapter implements DataAdapterInterface {
         return null;
     }
 
+    public User loadUser(int userID) {
+        try {
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM Employee WHERE EmployeeID = ?");
+            statement.setInt(1, userID);
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                User user = new User();
+                user.setUserID(resultSet.getInt("EmployeeID"));
+                user.setUsername(resultSet.getString("Username"));
+                user.setPassword(resultSet.getString("Password"));
+
+                String firstName = resultSet.getString("First Name");
+                String lastName = resultSet.getString("Last Name");
+
+                user.setFirstName(firstName != null ? firstName : "");
+                user.setLastName(lastName != null ? lastName : "");
+                user.setEmail(resultSet.getString("Email"));
+                user.setPhone(resultSet.getString("Phone"));
+                user.setAddress(resultSet.getString("Address"));
+                String roleString = resultSet.getString("Position"); // Retrieve the role string
+                User.UserRole userRole = User.UserRole.valueOf(roleString); // Convert to enum
+                user.setRole(userRole);
+
+                resultSet.close();
+                statement.close();
+                return user;
+            }
+        } catch (SQLException e) {
+            System.err.println("Database access error in loadUser!");
+            e.printStackTrace();
+
+        }
+        return null;
+    }
+
+    @Override
+    public List<User> loadAllUsers() {
+        try{
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM Employee");
+            ResultSet resultSet = statement.executeQuery();
+            List<User> users = new ArrayList<>();
+
+            while (resultSet.next()) {
+                User user = new User();
+                user.setUserID(resultSet.getInt("EmployeeID"));
+                user.setUsername(resultSet.getString("Username"));
+                user.setPassword(resultSet.getString("Password"));
+
+                String firstName = resultSet.getString("First Name");
+                String lastName = resultSet.getString("Last Name");
+
+                user.setFirstName(firstName != null ? firstName : "");
+                user.setLastName(lastName != null ? lastName : "");
+                user.setEmail(resultSet.getString("Email"));
+                user.setPhone(resultSet.getString("Phone"));
+                user.setAddress(resultSet.getString("Address"));
+                String roleString = resultSet.getString("Position"); // Retrieve the role string
+                User.UserRole userRole = User.UserRole.valueOf(roleString); // Convert to enum
+                user.setRole(userRole);
+
+                users.add(user);
+            }
+
+            resultSet.close();
+            statement.close();
+            return users;
+        } catch (SQLException e) {
+            System.err.println("Database access error in loadUser!");
+            e.printStackTrace();
+
+        }
+        return null;
+    }
+
     public String[][] loadAllUsersData() {
         try {
             List<String[]> rows = new ArrayList<>(); // Use a List to store rows dynamically
@@ -456,6 +560,33 @@ public class DataAdapter implements DataAdapterInterface {
             resultSet.close();
             statement.close();
             return supplier;
+        } catch (SQLException e) {
+            System.err.println("Database access error in loadSupplier!");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public List<Supplier> loadAllSuppliers(){
+        try {
+            List<Supplier> suppliers = new ArrayList<>();
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM Supplier");
+            ResultSet resultSet = statement.executeQuery();
+
+            while (resultSet.next()) {
+                Supplier supplier = new Supplier();
+                supplier = new Supplier();
+                supplier.setSupplierID(resultSet.getInt("SupplierID"));
+                supplier.setName(resultSet.getString("Name"));
+                supplier.setContactPerson(resultSet.getString("Contact_person"));
+                supplier.setPhone(resultSet.getString("Phone"));
+
+                suppliers.add(supplier);
+            }
+
+            resultSet.close();
+            statement.close();
+            return suppliers;
         } catch (SQLException e) {
             System.err.println("Database access error in loadSupplier!");
             e.printStackTrace();

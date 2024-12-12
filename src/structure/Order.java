@@ -12,7 +12,7 @@ public class Order {
     private int customerID;
     private Timestamp date;
 //    private int EmployeeID;
-    private double totalCost;
+    private double totalCost = 0;
     private String address;
     private String shipperName;
 

@@ -1,33 +1,33 @@
 package controller;
 
-import adapter.*;
-import main.Application;
-import structure.Customer;
-import structure.User;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import view.ManageUsersView;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 public class ManageUsersController implements ActionListener {
 
     private ManageUsersView manageUsersView;
-    private DataAdapter dataAdapter;
-    private DataAdapterMongo dataAdapterMongo;
 
-    public ManageUsersController(ManageUsersView manageUsersView, DataAdapter dataAdapter,
-                                                                DataAdapterMongo dataAdapterMongo) {
+    public ManageUsersController(ManageUsersView manageUsersView) {
         this.manageUsersView = manageUsersView;
-        this.dataAdapter = dataAdapter;
-        this.dataAdapterMongo = dataAdapterMongo;
-
-        manageUsersView.setUserDataTable(this.dataAdapter.loadAllUsersData());
-        manageUsersView.updateTable();
 
         manageUsersView.getCreateUserButton().addActionListener(this);
         manageUsersView.getDeleteUserButton().addActionListener(this);
         manageUsersView.getUpdateUserButton().addActionListener(this);
+
+        // Load all users when the controller is initialized
+        loadAllUsers();
     }
 
     @Override
@@ -35,112 +35,152 @@ public class ManageUsersController implements ActionListener {
         if (e.getSource().equals(manageUsersView.getCreateUserButton())) {
             createUser();
             manageUsersView.clearInputBoxes();
-        }
-        else if (e.getSource().equals(manageUsersView.getDeleteUserButton())) {
+            loadAllUsers(); // Refresh after creation
+        } else if (e.getSource().equals(manageUsersView.getDeleteUserButton())) {
             deleteUser();
             manageUsersView.clearInputBoxes();
-        }
-        else if (e.getSource().equals(manageUsersView.getUpdateUserButton())) {
+            loadAllUsers(); // Refresh after deletion
+        } else if (e.getSource().equals(manageUsersView.getUpdateUserButton())) {
             updateUser();
             manageUsersView.clearInputBoxes();
+            loadAllUsers(); // Refresh after update
+        }
+    }
+
+    public void loadAllUsers() {
+        try {
+            URL url = new URL("http://localhost:8000/users");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
+
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+
+                    // Parse JSON array
+                    JSONArray usersArray = new JSONArray(response.toString());
+                    String[][] userData = new String[usersArray.length()][9]; // Adjust columns if needed
+
+                    for (int i = 0; i < usersArray.length(); i++) {
+                        JSONObject userJson = usersArray.getJSONObject(i);
+                        userData[i][0] = String.valueOf(userJson.getInt("userID"));
+                        userData[i][1] = userJson.getString("username");
+                        userData[i][2] = userJson.optString("password", ""); // Optional
+                        userData[i][3] = userJson.getString("firstName");
+                        userData[i][4] = userJson.getString("lastName");
+                        userData[i][5] = userJson.getString("email");
+                        userData[i][6] = userJson.getString("phone");
+                        userData[i][7] = userJson.getString("address");
+                        userData[i][8] = userJson.getString("role");
+                    }
+
+                    manageUsersView.setUserDataTable(userData);
+                    manageUsersView.updateTable();
+                }
+            } else {
+                JOptionPane.showMessageDialog(manageUsersView, "Failed to load users. Response code: " + connection.getResponseCode(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(manageUsersView, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     public void createUser() {
-        if (manageUsersView.areBoxesEmpty()){
-            JOptionPane.showMessageDialog(manageUsersView, "One of the field is empty! Please try again!",
-                                                                                "Error", JOptionPane.ERROR_MESSAGE);
+        if (manageUsersView.areBoxesEmpty()) {
+            JOptionPane.showMessageDialog(manageUsersView, "One of the fields is empty! Please try again!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        User user = new User();
-        user.setUserID(Integer.parseInt(manageUsersView.getUserIDTextField().getText()));
-        user.setUsername(manageUsersView.getUsernameTextField().getText());
-        user.setEmail(manageUsersView.getEmailTextField().getText());
-        user.setPassword(manageUsersView.getPasswordTextField().getText());
-        user.setFirstName(manageUsersView.getFirstNameTextField().getText());
-        user.setLastName(manageUsersView.getLastNameTextField().getText());
-        user.setAddress(manageUsersView.getAddressTextField().getText());
-        user.setPhone(manageUsersView.getPhoneTextField().getText());
-        user.setRole(User.UserRole.valueOf(manageUsersView.getUserRole()));
-        dataAdapter.addUser(user);
 
-        if (user.getRole() == User.UserRole.Customer) {
-            Customer customer = new Customer();
-            customer.setUserID(user.getUserID());
-            customer.setFirstName(user.getFirstName());
-            customer.setLastName(user.getLastName());
-            customer.setAddress(user.getAddress());
-            customer.setEmail(user.getEmail());
-            customer.setPhone(user.getPhone());
-            this.dataAdapterMongo.createCustomer(customer);
+        try {
+            JSONObject jsonPayload = getUserPayload();
+            URL url = new URL("http://localhost:8000/users");
+            HttpURLConnection connection = createConnection(url, "POST");
+
+            writePayload(connection, jsonPayload);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_CREATED) {
+                JOptionPane.showMessageDialog(manageUsersView, "User created successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(manageUsersView, "Failed to create user. Response code: " + responseCode, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(manageUsersView, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-        manageUsersView.setUserDataTable(this.dataAdapter.loadAllUsersData());
-        manageUsersView.updateTable();
-
-        JOptionPane.showMessageDialog(manageUsersView, "User created successfully!", "Success",
-                JOptionPane.INFORMATION_MESSAGE);
     }
 
-    public void updateUser(){
-        if (manageUsersView.areBoxesEmpty()){
-            JOptionPane.showMessageDialog(manageUsersView, "One of the field is empty! Please try again!",
-                    "Error", JOptionPane.ERROR_MESSAGE);
+    public void updateUser() {
+        if (manageUsersView.areBoxesEmpty()) {
+            JOptionPane.showMessageDialog(manageUsersView, "One of the fields is empty! Please try again!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (Integer.parseInt(manageUsersView.getUserIDTextField().getText()) == Application.getInstance().getCurrentUser().getUserID()){
-            JOptionPane.showMessageDialog(manageUsersView, "Cannot modify the current user",
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            return;
+
+        try {
+            JSONObject jsonPayload = getUserPayload();
+            URL url = new URL("http://localhost:8000/users");
+            HttpURLConnection connection = createConnection(url, "PUT");
+
+            writePayload(connection, jsonPayload);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                JOptionPane.showMessageDialog(manageUsersView, "User updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(manageUsersView, "Failed to update user. Response code: " + responseCode, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(manageUsersView, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-        User user = new User();
-        user.setUserID(Integer.parseInt(manageUsersView.getUserIDTextField().getText()));
-        user.setUsername(manageUsersView.getUsernameTextField().getText());
-        user.setEmail(manageUsersView.getEmailTextField().getText());
-        user.setPassword(manageUsersView.getPasswordTextField().getText());
-        user.setFirstName(manageUsersView.getFirstNameTextField().getText());
-        user.setLastName(manageUsersView.getLastNameTextField().getText());
-        user.setAddress(manageUsersView.getAddressTextField().getText());
-        user.setPhone(manageUsersView.getPhoneTextField().getText());
-        user.setRole(User.UserRole.valueOf(manageUsersView.getUserRole()));
-        dataAdapter.updateUser(user);
-
-        manageUsersView.setUserDataTable(this.dataAdapter.loadAllUsersData());
-        manageUsersView.updateTable();
-
-        JOptionPane.showMessageDialog(manageUsersView, "User updated successfully!", "Success",
-                JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void deleteUser() {
-        if (manageUsersView.areBoxesEmpty()){
-            JOptionPane.showMessageDialog(manageUsersView, "One of the field is empty! Please try again!",
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        int userID = Integer.parseInt(manageUsersView.getUserIDTextField().getText());
-        if (userID == Application.getInstance().getCurrentUser().getUserID()){
-                JOptionPane.showMessageDialog(manageUsersView, "Cannot delete the current user",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-        }
-        int confirmation = JOptionPane.showConfirmDialog(
-                manageUsersView,
-                "Are you sure you want to delete this user?",
-                "Confirm Deletion",
-                JOptionPane.YES_NO_OPTION
-        );
-        if (confirmation == JOptionPane.YES_OPTION) {
-            if(dataAdapter.deleteUser(userID)){
-                manageUsersView.clearInputBoxes();
-                JOptionPane.showMessageDialog(manageUsersView, "User deleted successfully.");
+        try {
+            int userID = Integer.parseInt(manageUsersView.getUserIDTextField().getText());
+            URL url = new URL("http://localhost:8000/users?userID=" + userID);
+            HttpURLConnection connection = createConnection(url, "DELETE");
 
-                manageUsersView.setUserDataTable(this.dataAdapter.loadAllUsersData());
-                manageUsersView.updateTable();
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                JOptionPane.showMessageDialog(manageUsersView, "User deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(manageUsersView, "Failed to delete user. Response code: " + responseCode, "Error", JOptionPane.ERROR_MESSAGE);
             }
-            else{
-                JOptionPane.showMessageDialog(manageUsersView, "Failed to delete user.");
-            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(manageUsersView, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private JSONObject getUserPayload() {
+        JSONObject jsonPayload = new JSONObject();
+        jsonPayload.put("userID", Integer.parseInt(manageUsersView.getUserIDTextField().getText()));
+        jsonPayload.put("username", manageUsersView.getUsernameTextField().getText());
+        jsonPayload.put("password", manageUsersView.getPasswordTextField().getText());
+        jsonPayload.put("firstName", manageUsersView.getFirstNameTextField().getText());
+        jsonPayload.put("lastName", manageUsersView.getLastNameTextField().getText());
+        jsonPayload.put("email", manageUsersView.getEmailTextField().getText());
+        jsonPayload.put("phone", manageUsersView.getPhoneTextField().getText());
+        jsonPayload.put("address", manageUsersView.getAddressTextField().getText());
+        jsonPayload.put("role", manageUsersView.getUserRole());
+        return jsonPayload;
+    }
+
+    private HttpURLConnection createConnection(URL url, String method) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod(method);
+        connection.setRequestProperty("Content-Type", "application/json; utf-8");
+        connection.setDoOutput(true);
+        return connection;
+    }
+
+    private void writePayload(HttpURLConnection connection, JSONObject payload) throws IOException {
+        try (OutputStream os = connection.getOutputStream()) {
+            byte[] input = payload.toString().getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
         }
     }
 }

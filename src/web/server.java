@@ -1,96 +1,85 @@
 package web;
 
-import adapter.*;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
+import com.mongodb.MongoException;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoDatabase;
 import com.sun.net.httpserver.HttpServer;
-import org.json.JSONObject;
-import structure.User;
+import web.SearchHandler;
 
+import adapter.*;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
-
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.concurrent.Executors;
 
 public class server {
+    public static void main(String[] args) {
+        try {
+            // Define the server port
+            int port = 8000;
+            HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
 
-    private DataAdapterInterface dataAdapter; // Your data adapter
+            /**************************************SQLITE**************************************/
 
+            String url = "jdbc:sqlite:StoreDemo/store.db";
 
-    public server(DataAdapterInterface adapter) {
-        this.dataAdapter = adapter;
+            Connection connection = DriverManager.getConnection(url);
+            DataAdapterInterface dataAdapterSQL = new DataAdapter(connection);
 
-    }
+            /**************************************SQLITE**************************************/
+            /**************************************MongoDB**************************************/
 
+            String uri = "mongodb://localhost:27017";  // Connection string for local MongoDB
+            MongoClient mongoClient = MongoClients.create(uri);
+            MongoDatabase database = mongoClient.getDatabase("storeManagement"); // Connect to "storeManagement" database
+            DataAdapterInterface dataAdapterMongo = new DataAdapterMongo(database);
 
+            /**************************************MongoDB**************************************/
 
-    public void startServer(int port) throws IOException {
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+            // Create context for /search endpoint
+            server.createContext("/search", new ProductSearchAPI(dataAdapterSQL));
 
-        // Endpoint for login
-        server.createContext("/login", new LoginHandler());
+            server.createContext("/login", new UserQuery(dataAdapterSQL));
 
+            server.createContext("/orderShop", new orderFromShop(dataAdapterMongo, dataAdapterSQL));
 
-        server.setExecutor(null); // creates a default executor
-        server.start();
-        System.out.println("Server started on port " + port);
+            server.createContext("/orderCustomer", new orderFromCustomer(dataAdapterMongo, dataAdapterSQL));
 
+            server.createContext("/users", new UserManagement(dataAdapterSQL, dataAdapterMongo));
 
-    }
+            server.createContext("/suppliers", new SupplierQuery(dataAdapterSQL));
 
+            server.createContext("/inventory", new InventoryManagement(dataAdapterSQL));
 
-    class LoginHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if ("POST".equals(exchange.getRequestMethod())) {
+            server.createContext("/sales", new SaleManagement(dataAdapterMongo));
 
+            server.createContext("/editCustomer", new CustomerEditAPI(dataAdapterMongo, dataAdapterSQL));
 
-                    // Read request body (username and password)
-                    String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-                    JSONObject json = new JSONObject(requestBody);
-                    String username = json.getString("username");
-                    String password = json.getString("password");
+            // Optionally, create context for other endpoints like /register, /sales-report, etc.
 
-                    User user = dataAdapter.loadUser(username, password);
+            // Set executor to handle multiple requests concurrently
+            server.setExecutor(Executors.newFixedThreadPool(10));
 
-                    if (user != null) {
+            // Start the server
+            server.start();
+            System.out.println("Server started on port " + port);
 
+            // Add shutdown hook for graceful shutdown
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("Shutting down server...");
+                server.stop(1);
+//                DataStore.closeMongoConnection(); // Close MongoDB connection if necessary
+                System.out.println("Server stopped.");
+            }));
 
-                        // Successful login
-                        String response = "Login successful!";
-                        exchange.sendResponseHeaders(200, response.length());
-                        OutputStream os = exchange.getResponseBody();
-                        os.write(response.getBytes());
-
-                    } else {
-
-                        // Authentication failed
-                        String response = "Login failed!";
-                        exchange.sendResponseHeaders(401, response.length()); // 401 Unauthorized
-                        OutputStream os = exchange.getResponseBody();
-                        os.write(response.getBytes());
-                    }
-
-            }
-
-
-            exchange.close();
+        } catch (IOException e) {
+            System.out.println("Failed to create HTTP server on port " + 8000);
+            e.printStackTrace();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
-
-    // Example usage (in your main Application class or elsewhere)
-    public static void main(String[] args) throws IOException, SQLException, ClassNotFoundException {
-        Class.forName("org.sqlite.JDBC");
-        Connection conn = DriverManager.getConnection("jdbc:sqlite:StoreDemo/store.db"); // Replace with your database URL
-
-
-        DataAdapter dataAdapter = new DataAdapter(conn);
-        server server = new server(dataAdapter);
-        server.startServer(8000); // Start server on port 8000 (or any available port)
-
-    }
-
-
 }

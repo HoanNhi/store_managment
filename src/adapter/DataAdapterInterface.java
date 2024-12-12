@@ -22,11 +22,12 @@ public interface DataAdapterInterface {
     boolean saveOrder(Order order);
     boolean deleteOrder(int orderID);
     List<Order> loadOrdersByDateRange(Date startDate, Date endDate);
-
-
+    List<Product> loadProductsByPriceRange(double minPrice, double maxPrice);
 
     //User related functions
     User loadUser(String username, String password);
+    User loadUser(int userID);
+    List<User> loadAllUsers();
     String[][] loadAllUsersData() throws SQLException;
     boolean addUser(User user);
     boolean updateUser(User user);
@@ -34,6 +35,7 @@ public interface DataAdapterInterface {
 
     //Supplier related functions
     Supplier loadSupplier(int supplierID);
+    List<Supplier> loadAllSuppliers();
     boolean saveSupplier(Supplier supplier);
     boolean deleteSupplier(int supplierID);
 
@@ -50,4 +52,5 @@ public interface DataAdapterInterface {
 
 
     boolean updateCustomer(Customer updatedCustomer);
+
 }

@@ -158,6 +158,8 @@ public class CustomerEditView extends JDialog {
     public JButton getBtnCancel() { return btnCancel; }
     public Customer getCustomer() { return this.customer; }
     public User getUser(){ return this.user; }
+    public void setUser(User user){ this.user = user; }
+    public void setCustomer(Customer customer){ this.customer = customer; }
 
 //    private void getCustomer(User user) {
 //        Customer customer = new Customer();

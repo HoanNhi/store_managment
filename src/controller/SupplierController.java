@@ -1,20 +1,22 @@
 package controller;
 
-import adapter.DataAdapter;
-import main.Application;
-import structure.*;
+import org.json.JSONObject;
+import org.json.JSONArray;
 import view.SupplierView;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class SupplierController implements ActionListener {
     private SupplierView supplierView;
-    private DataAdapter dataAdapter;
 
-    public SupplierController(SupplierView view, DataAdapter dataAdapter) {
-        this.dataAdapter = dataAdapter;
+    public SupplierController(SupplierView view) {
         this.supplierView = view;
 
         view.getBtnLoad().addActionListener(this);
@@ -32,114 +34,74 @@ public class SupplierController implements ActionListener {
                 JOptionPane.showMessageDialog(supplierView, "Supplier ID invalid. Please try again");
             }
         } else if (e.getSource() == supplierView.getBtnSave()) {
-            try {
-                if (Application.getInstance().getCurrentUser().getRole() == User.UserRole.Manager) {
-                    int supplierID = Integer.parseInt(supplierView.getTxtSupplierID().getText());
-                    saveSupplier(supplierID);
-                }
-                else{
-                    JOptionPane.showMessageDialog(supplierView, "User is not permitted to modify this supplier");
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(supplierView, "Supplier ID invalid. Please try again");
-            }
-        }
-        else if (e.getSource() == supplierView.getBtnDelete()) {
-            try {
-                if(Application.getInstance().getCurrentUser().getRole() == User.UserRole.Manager) {
-                    int supplierID = Integer.parseInt(supplierView.getTxtSupplierID().getText());
-                    deleteSupplier(supplierID);
-                }
-                else{
-                    JOptionPane.showMessageDialog(supplierView, "User is not permitted to delete this supplier");
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(supplierView, "Supplier ID invalid. Please try again");
-            }
+            saveSupplier();
+        } else if (e.getSource() == supplierView.getBtnDelete()) {
+            deleteSupplier();
         }
     }
 
     private void loadSupplier(int supplierID) {
         try {
-            Supplier supplier = dataAdapter.loadSupplier(supplierID);
+            URL url = new URL("http://localhost:8000/suppliers?supplierID=" + supplierID);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
 
-            if (supplier == null) {
+            if (connection.getResponseCode() == 200) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                JSONObject supplierJson = new JSONObject(reader.readLine());
+                supplierView.getTxtSupplierName().setText(supplierJson.getString("name"));
+                supplierView.getTxtContactPerson().setText(supplierJson.getString("contactPerson"));
+                supplierView.getTxtPhone().setText(supplierJson.getString("phone"));
+            } else {
                 JOptionPane.showMessageDialog(supplierView, "Supplier not found.");
-                return; // Or clear fields, handle as needed
             }
-
-            supplierView.getTxtSupplierName().setText(supplier.getName());
-            supplierView.getTxtContactPerson().setText(supplier.getContactPerson());
-            supplierView.getTxtPhone().setText(supplier.getPhone());
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(supplierView, "Invalid supplier ID format.");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(supplierView, "Error: " + e.getMessage());
         }
     }
 
-
-    private void saveSupplier(int supplierID) {
+    private void saveSupplier() {
         try {
-            String name = supplierView.getTxtSupplierName().getText();
-            String contactPerson = supplierView.getTxtContactPerson().getText();
-            String phone = supplierView.getTxtPhone().getText();
+            JSONObject jsonPayload = new JSONObject();
+            jsonPayload.put("supplierID", Integer.parseInt(supplierView.getTxtSupplierID().getText()));
+            jsonPayload.put("name", supplierView.getTxtSupplierName().getText());
+            jsonPayload.put("contactPerson", supplierView.getTxtContactPerson().getText());
+            jsonPayload.put("phone", supplierView.getTxtPhone().getText());
 
-            // Basic validation (you can add more robust validation)
-            if (name.isEmpty() || contactPerson.isEmpty() || phone.isEmpty()) {
-                JOptionPane.showMessageDialog(supplierView, "Please fill in all fields.");
-                return;
+            URL url = new URL("http://localhost:8000/suppliers");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(jsonPayload.toString().getBytes());
             }
 
-            Supplier supplier = dataAdapter.loadSupplier(supplierID);
-
-            if (supplier != null) { //Update supplier if it exists
-                supplier.setName(name);
-                supplier.setContactPerson(contactPerson);
-                supplier.setPhone(phone);
-            } else {  // Create new if it doesn't exist
-                supplier = new Supplier();
-                supplier.setSupplierID(supplierID);
-                supplier.setName(name);
-                supplier.setContactPerson(contactPerson);
-                supplier.setPhone(phone);
-            }
-
-            if (dataAdapter.saveSupplier(supplier)) {
-                supplierView.clearFields(); // Clear fields after successful save
+            if (connection.getResponseCode() == 200) {
                 JOptionPane.showMessageDialog(supplierView, "Supplier saved successfully.");
+            } else {
+                JOptionPane.showMessageDialog(supplierView, "Failed to save supplier.");
             }
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(supplierView, "Invalid input. Please check the ID and phone number.");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(supplierView, "Error: " + e.getMessage());
         }
     }
 
-    private void deleteSupplier(int supplierID) {
-
+    private void deleteSupplier() {
         try {
+            int supplierID = Integer.parseInt(supplierView.getTxtSupplierID().getText());
+            URL url = new URL("http://localhost:8000/suppliers?supplierID=" + supplierID);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("DELETE");
 
-            int confirmation = JOptionPane.showConfirmDialog(
-                    supplierView,
-                    "Are you sure you want to delete this supplier? " +
-                            "All related products will also be deleted." ,
-                    "Confirm Deletion",
-                    JOptionPane.YES_NO_OPTION
-            );
-
-            if (confirmation == JOptionPane.YES_OPTION) {
-                if (dataAdapter.deleteSupplier(supplierID)) {
-                    supplierView.clearFields();
-                    JOptionPane.showMessageDialog(supplierView, "Supplier deleted successfully!");
-                    return; // Stop if product deletion fails
-                } else {
-                    JOptionPane.showMessageDialog(supplierView, "Failed to delete supplier.");
-                }
+            if (connection.getResponseCode() == 200) {
+                JOptionPane.showMessageDialog(supplierView, "Supplier deleted successfully.");
+            } else {
+                JOptionPane.showMessageDialog(supplierView, "Failed to delete supplier.");
             }
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(supplierView, "Invalid Supplier ID format.");
-
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(supplierView, "Error: " + e.getMessage());
         }
     }
-
 }

@@ -124,11 +124,11 @@ public class Application {
         return orderReportController;
     }
 
-    private AllProductController allProductController;
+//    private AllProductController allProductController;
 
-    public AllProductController getAllProductController(){
-        return allProductController;
-    }
+//    public AllProductController getAllProductController(){
+//        return allProductController;
+//    }
 
     public DataAdapter getDataAdapterSQL() {
         return dataAdapterSQL;
@@ -162,9 +162,9 @@ public class Application {
         this.supplierController = supplierController;
     }
 
-    public void setAllProductController(AllProductController allProductController) {
-        this.allProductController = allProductController;
-    }
+//    public void setAllProductController(AllProductController allProductController) {
+//        this.allProductController = allProductController;
+//    }
 
     public ManageUsersController getManageUsersController() {
         return manageUsersController;
@@ -233,31 +233,30 @@ public class Application {
     public void initializeAfterLogin() { // New method
         // Initialize controllers and views AFTER successful login
         mainScreen = new MainScreen(this.dataAdapterSQL, this.dataAdapterMongo);
-        if (this.getCurrentUser().getRole() == User.UserRole.Seller){
+        if (this.getCurrentUser().getRole() != User.UserRole.Customer){
             productController = new ProductController(this.productDetailView, dataAdapterSQL);
 
             checkoutController = new CheckoutController(checkoutScreen, dataAdapterSQL, dataAdapterMongo);
 
-            allProductController = new AllProductController(productDetailView, dataAdapterSQL);
+//            allProductController = new AllProductController(productDetailView, dataAdapterSQL);
             if (this.getCurrentUser().getRole() == User.UserRole.Manager){
                 orderDetailView = new OrderDetailView(this.dataAdapterMongo, this.dataAdapterSQL);
                 orderReportController = new OrderReportController(orderReportView, orderDetailView, dataAdapterMongo);
 
-                supplierController = new SupplierController(supplierView, dataAdapterSQL);
+                supplierController = new SupplierController(supplierView);
 
                 manageUsersView = new ManageUsersView();
 
-                this.manageUsersController = new ManageUsersController(manageUsersView, dataAdapterSQL,
-                        dataAdapterMongo);
+                this.manageUsersController = new ManageUsersController(manageUsersView);
             }
         }
         else if (this.getCurrentUser().getRole() == User.UserRole.Customer){
             Customer customer = dataAdapterMongo.loadCustomer(currentUser.getUserID());
             this.customerEditView = new CustomerEditView(this.mainScreen, customer, this.currentUser);
-            this.customerEditController = new CustomerEditController(this.customerEditView, dataAdapterMongo, dataAdapterSQL);
+            this.customerEditController = new CustomerEditController(this.customerEditView);
 
             this.customerBuyerView = new CustomerBuyerView();
-            this.customerBuyerController = new CustomerBuyerController(customerBuyerView, dataAdapterSQL, dataAdapterMongo);
+            this.customerBuyerController = new CustomerBuyerController(customerBuyerView);
 
             orderDetailView = new OrderDetailView(this.dataAdapterMongo, this.dataAdapterSQL);
             orderReportController = new OrderReportController(orderReportView, orderDetailView, dataAdapterMongo);

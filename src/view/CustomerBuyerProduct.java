@@ -1,4 +1,3 @@
-// ProductDetailView.java
 package view;
 
 import structure.Product;
@@ -6,38 +5,33 @@ import structure.Product;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class CustomerBuyerProduct extends JFrame {
-    private JTable productTable; // Renamed for clarity
-    private DefaultTableModel tableModel; // Renamed for clarity
-    private final Dimension labelDimension = new Dimension(80, 20);  // Consistent with ManageUsersView
-    private final Dimension inputBoxDimension = new Dimension(180, 20); // Consistent with ManageUsersView
-    private final Dimension inputPanelDimension = new Dimension((int) (labelDimension.getWidth() + inputBoxDimension.getWidth()) + 20, 0);
-    private JPanel inputPanel;
-    private final Color mainColor = Color.white, inputColor = Color.black;
-    private final Dimension buttonsDimension = new Dimension(105, 25);
-    private String[] tableColumns;
+    private JTable productTable;
+    private DefaultTableModel tableModel;
+    private final String[] tableColumns = {"Product ID", "Product Name", "Category", "Supplier ID", "Unit Price", "Description", "Quantity"};
     private String[][] userData;
 
-
     public CustomerBuyerProduct() {
-        /**************************WINDOWS**************************/
+        // Window setup
         this.setTitle("Product Details");
-        this.setSize(1028, 800); // Consistent size with ManageUsersView
+        this.setSize(1028, 800);
         this.setResizable(false);
         this.setLocationRelativeTo(null);
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         this.setLayout(new BorderLayout());
-        /**************************WINDOWS**************************/
-        /**************************TABLE**************************/
-        // Product Table
-        tableColumns = new String[]{"Product ID", "Product Name", "Category", "Supplier ID", "Unit Price",
-                                                                                    "Description", "Quantity"};
-        tableModel = new DefaultTableModel(userData, tableColumns);
 
+        // Table setup
+        tableModel = new DefaultTableModel(userData, tableColumns);
         productTable = new JTable(tableModel) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -45,14 +39,13 @@ public class CustomerBuyerProduct extends JFrame {
             }
         };
         JScrollPane scrollPane = new JScrollPane(productTable);
-
         this.add(scrollPane, BorderLayout.CENTER);
-        /**************************TABLE**************************/
 
+        loadAndShowProducts();
     }
 
     public void showProduct(List<Product> products) {
-        tableModel.setRowCount(0);
+        tableModel.setRowCount(0); // Clear existing rows
         for (Product product : products) {
             Object[] row = {
                     product.getProductID(),
@@ -67,15 +60,46 @@ public class CustomerBuyerProduct extends JFrame {
         }
     }
 
-    public void setProductTable(String[][] userData) {
-        this.userData = userData;
-    }
+    public void loadAndShowProducts() {
+        try {
+            // Make HTTP GET request to the API
+            URL url = new URL("http://localhost:8000/inventory");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
 
-    public void updateTable() {
-        int currentRowCount = tableModel.getRowCount();
-        tableModel.setRowCount(0);
-        tableModel.setRowCount(currentRowCount);
-        tableModel.setDataVector(userData, tableColumns);
-    }
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
 
+                // Parse JSON response into a list of products
+                JSONArray jsonArray = new JSONArray(response.toString());
+                List<Product> products = new ArrayList<>();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonProduct = jsonArray.getJSONObject(i);
+                    Product product = new Product();
+                    product.setProductID(jsonProduct.getInt("productID"));
+                    product.setName(jsonProduct.getString("name"));
+                    product.setCategory(jsonProduct.getString("category"));
+                    product.setSupplierID(jsonProduct.getInt("supplierID"));
+                    product.setPrice(jsonProduct.getDouble("unitPrice"));
+                    product.setDescription(jsonProduct.getString("description"));
+                    product.setQuantity(jsonProduct.getInt("quantity"));
+                    products.add(product);
+                }
+
+                // Display products in the table
+                showProduct(products);
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to load products. Response code: " + connection.getResponseCode(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 }

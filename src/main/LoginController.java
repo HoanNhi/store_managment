@@ -13,6 +13,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.*;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 
 import structure.User;
@@ -22,6 +23,7 @@ import adapter.DataAdapter;
 public class LoginController implements ActionListener, ItemListener { // Implement ItemListener
     private LoginScreen loginScreen;
     private DataAdapter dataAdapter;
+    private String apiEndpoint = "http://localhost:8000/login"; // Your API endpoint
 
     public LoginController(LoginScreen loginScreen, DataAdapter dataAdapter) {
         this.loginScreen = loginScreen;
@@ -82,28 +84,105 @@ public class LoginController implements ActionListener, ItemListener { // Implem
             String username = loginScreen.getTxtUserName().getText().trim();
             String password = loginScreen.getPassword();
 
-            System.out.println("Login with username = " + username + " and password = " + password);
-            User user = dataAdapter.loadUser(username, password);
+//            try {
+//                // 1. Create JSON payload
+//                JSONObject jsonPayload = new JSONObject();
+//                jsonPayload.put("username", username);
+//                jsonPayload.put("password", password);
+//
+//                URL url = new URL(apiEndpoint);
+//                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+//                connection.setRequestMethod("GET");
+//                connection.setRequestProperty("Content-Type", "application/json; utf-8");
+//                connection.setRequestProperty("Accept", "application/json"); // For receiving JSON response
+//                connection.setDoOutput(false); // For sending request body
+//
+//                try (OutputStream os = connection.getOutputStream()) {
+//                    byte[] input = jsonPayload.toString().getBytes(StandardCharsets.UTF_8);
+//                    os.write(input, 0, input.length);
+//                }
+//
+//                int responseCode = connection.getResponseCode();
+//
+//
+//                if (responseCode == HttpURLConnection.HTTP_OK) {
+//                    // 3. Read JSON response (if any)
+//                    StringBuilder response = new StringBuilder();
+//                    try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), "utf-8"))) {
+//                        String responseLine;
+//                        while ((responseLine = br.readLine()) != null) {
+//                            response.append(responseLine.trim());
+//                        }
+//                    }
+//                    JSONObject jsonResponse = new JSONObject(response.toString()); //Parse the response
+//
+//
+//                    //4. Load user data using DataAdapter from database
+//                    User authenticatedUser = dataAdapter.loadUser(username, password);
+//
+//                    if (authenticatedUser != null) {
+//                        Application.getInstance().setCurrentUser(authenticatedUser);
+//                        Application.getInstance().initializeAfterLogin(); // Initialize after login
+//                        Application.getInstance().getMainScreen().setVisible(true);
+//                        loginScreen.setVisible(false);  // Hide login screen
+//                        loginScreen.clearField(); // Clear after successful login
+//                    } else {
+//                        JOptionPane.showMessageDialog(null, "Authentication successful, but user data not found in the database.");
+//                    }
+//
+//
+//
+//                } else {
+//                    JOptionPane.showMessageDialog(null, "Login failed. Please check your username and password."); // Or display error message
+//                }
+//
+//            } catch (IOException ex) {
+//                JOptionPane.showMessageDialog(null, "Error communicating with the server: " + ex.getMessage());
+//                ex.printStackTrace(); // Or log the error
+//            }
 
-            if (user == null) {
-                JOptionPane.showMessageDialog(null, "This user does not exist!");
-                loginScreen.setLoginSuccessful(false);
-            }
-            else {
-                this.loginScreen.setVisible(false);
+            try {
+                String query = String.format("username=%s&password=%s",
+                        URLEncoder.encode(username, StandardCharsets.UTF_8),
+                        URLEncoder.encode(password, StandardCharsets.UTF_8));
+                URL url = new URL(apiEndpoint + "?" + query); // Add parameters to the URL as query string
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("Accept", "application/json");
 
-                if (user.getRole() == User.UserRole.Manager)
-                    System.out.println("Manager");
-                else if (user.getRole() == User.UserRole.Seller)
-                    System.out.println("Seller");
-                else
-                    System.out.println("Customer");
-                loginScreen.setLoginSuccessful(true);
-                Application.getInstance().setCurrentUser(user);
-                Application.getInstance().initializeAfterLogin(); // Initialize the rest of the application
-                Application.getInstance().getMainScreen().setVisible(true);
-                loginScreen.clearField();
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    StringBuilder response = new StringBuilder();
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                        String responseLine;
+                        while ((responseLine = br.readLine()) != null) {
+                            response.append(responseLine.trim());
+                        }
+                    }
+
+                    //4. Load user data using DataAdapter from database
+                    User authenticatedUser = dataAdapter.loadUser(username, password);
+
+                    if (authenticatedUser != null) {
+                        Application.getInstance().setCurrentUser(authenticatedUser);
+                        Application.getInstance().initializeAfterLogin(); // Initialize after login
+                        Application.getInstance().getMainScreen().setVisible(true);
+                        loginScreen.setVisible(false);  // Hide login screen
+                        loginScreen.clearField(); // Clear after successful login
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Authentication successful, but user data not found in the database.");
+                    }
+
+
+                } else {
+                    JOptionPane.showMessageDialog(null, "Login failed. Please check your username and password.");
+                }
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(null, "Error communicating with the server: " + ex.getMessage());
+                ex.printStackTrace();
             }
+
+
         }
     }
 

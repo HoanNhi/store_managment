@@ -3,10 +3,18 @@ package controller;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import adapter.DataAdapterMongo;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import structure.Order;
 import structure.OrderItem;
 import structure.Product;
@@ -18,13 +26,11 @@ import adapter.DataAdapter;
 public class CheckoutController implements ActionListener {
     private BuyerView view;
     private DataAdapter dataAdapter; // to save and load product
-    private DataAdapterMongo dataAdapterMongo;
     private Order order = null;
     private CustomerView customerView; // Add customer dialog
 
     public CheckoutController(BuyerView view, DataAdapter dataAdapter, DataAdapterMongo dataAdapterMongo) {
         this.dataAdapter = dataAdapter;
-        this.dataAdapterMongo = dataAdapterMongo;
         this.view = view;
         this.customerView = new CustomerView(view, dataAdapterMongo);
 
@@ -45,85 +51,112 @@ public class CheckoutController implements ActionListener {
     }
 
     private void makeOrder() {
-        if (this.order.getLines().size() == 0) {
-            JOptionPane.showMessageDialog(null, "Please choose at least one product");
-            return;
-        }
+        try {
+            JSONObject orderJson = new JSONObject();
+            orderJson.put("customerID", order.getCustomerID());
+            orderJson.put("totalCost", order.getTotalCost());
+            orderJson.put("address", customerView.getAddress());
+            orderJson.put("shipperName", customerView.getShipperName());
 
-        customerView.setVisible(true);
+            JSONArray items = new JSONArray();
+            for (OrderItem item : order.getLines()) {
+                JSONObject itemJson = new JSONObject();
+                itemJson.put("productID", item.getProductID());
+                itemJson.put("productName", item.getProductName());
+                itemJson.put("quantity", item.getQuantity());
+                itemJson.put("unitCost", item.getUnitCost());
+                itemJson.put("cost", item.getCost());
+                items.put(itemJson);
+            }
+            orderJson.put("items", items);
 
-        Customer customer = customerView.getCustomer();
-        if (customer != null) { //Check if customer was returned
-            this.order.setCustomerID(customer.getCustomerID()); // Set CustomerID in the order
+            URL url = new URL("http://localhost:8000/orderShop");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
 
-            for (OrderItem line : this.order.getLines()) {
-                Product product = dataAdapter.loadProduct(line.getProductID());
-
-                if (product != null) { //Check if product exists before updating quantity
-                    int updatedQuantity = product.getQuantity() - line.getQuantity();
-                    if (updatedQuantity >= 0) { //Check for negative quantities
-                        product.setQuantity(updatedQuantity); // Update quantity
-                        dataAdapter.saveProduct(product);    // Save product
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Not enough product in stock. ");
-                        return;
-                    }
-                }
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(orderJson.toString().getBytes(StandardCharsets.UTF_8));
             }
 
-            this.order.setDate(Timestamp.valueOf(LocalDateTime.now()));
-            this.order.setAddress(customerView.getAddress());
-            this.order.setShipperName(customerView.getShipperName());
-            if(dataAdapterMongo.saveOrder(this.order)){
+            if (connection.getResponseCode() == 201) {
                 JOptionPane.showMessageDialog(null, "Order added successfully");
                 view.clearOrder();
                 order = new Order();
+            } else {
+                JOptionPane.showMessageDialog(null, "Failed to create order");
             }
-            else{
-                JOptionPane.showMessageDialog(null, "Order failed!");
-            }
-        }
-        else{
-            JOptionPane.showMessageDialog(null, "Please choose a customer");
-            return;
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
 
     private void addProduct() {
-        String id = JOptionPane.showInputDialog("Enter ProductID: ");
-        Product product = dataAdapter.loadProduct(Integer.parseInt(id));
-        if (product == null) {
-            JOptionPane.showMessageDialog(null, "This product does not exist!");
-            return;
+        try {
+            String id = JOptionPane.showInputDialog("Enter ProductID: ");
+            if (id == null || id.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Product ID cannot be empty!");
+                return;
+            }
+
+            // Make an API call to fetch product details
+            URL url = new URL("http://localhost:8000/inventory?productID=" + id);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
+
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
+                StringBuilder response = new StringBuilder();
+                String lineResponse;
+                while ((lineResponse = reader.readLine()) != null) {
+                    response.append(lineResponse);
+                }
+
+                // Parse the product details
+                JSONObject productJson = new JSONObject(response.toString());
+                Product product = new Product();
+                product.setProductID(productJson.getInt("productID"));
+                product.setName(productJson.getString("name"));
+                product.setPrice(productJson.getDouble("price"));
+                product.setQuantity(productJson.getInt("quantity"));
+
+                // Prompt for quantity
+                int quantity = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter quantity: "));
+                if (quantity <= 0 || quantity > product.getQuantity()) {
+                    JOptionPane.showMessageDialog(null, "This quantity is not valid!");
+                    return;
+                }
+
+                // Create a new order line
+                OrderItem line = new OrderItem();
+                line.setProductID(product.getProductID());
+                line.setProductName(product.getName());
+                line.setQuantity(quantity);
+                line.setUnitCost(product.getPrice());
+                line.setCost(quantity * product.getPrice());
+                order.addLine(line);
+                order.setTotalCost(order.getTotalCost() + line.getCost());
+
+                // Update the table view
+                Object[] row = new Object[5];
+                row[0] = line.getProductID();
+                row[1] = product.getName();
+                row[2] = product.getPrice();
+                row[3] = line.getQuantity();
+                row[4] = line.getCost();
+
+                this.view.addRow(row);
+                this.view.getLabTotal().setText("Total: $" + order.getTotalCost());
+                this.view.invalidate();
+            } else {
+                JOptionPane.showMessageDialog(null, "Product not found or API call failed. Response code: " + connection.getResponseCode());
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
-
-        int quantity = Integer.parseInt(JOptionPane.showInputDialog(null,"Enter quantity: "));
-
-        if (quantity < 0 || quantity > product.getQuantity()) {
-            JOptionPane.showMessageDialog(null, "This quantity is not valid!");
-            return;
-        }
-
-        OrderItem line = new OrderItem();
-        line.setProductID(product.getProductID());
-        line.setProductName(product.getName());
-        line.setQuantity(quantity);
-        line.setUnitCost(product.getPrice());
-        line.setCost(quantity * product.getPrice());
-        order.addLine(line);
-        order.setTotalCost(order.getTotalCost() + line.getCost());
-
-
-        Object[] row = new Object[5];
-        row[0] = line.getProductID();
-        row[1] = product.getName();
-        row[2] = product.getPrice();
-        row[3] = line.getQuantity();
-        row[4] = line.getCost();
-
-        this.view.addRow(row);
-        this.view.getLabTotal().setText("Total: $" + order.getTotalCost());
-        this.view.invalidate();
     }
+
 
 }

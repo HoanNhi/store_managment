@@ -43,8 +43,6 @@ public class OrderDetailView extends JFrame {
 
         add(panelOrderDetails, BorderLayout.NORTH);
 
-
-
         //Order Items Table
         itemsTableModel = new DefaultTableModel();
         itemsTableModel.addColumn("Product ID");

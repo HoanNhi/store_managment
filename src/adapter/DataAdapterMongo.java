@@ -417,7 +417,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
 
         try{
             MongoCollection<Document> ordersCollection = database.getCollection("Order");
-
+            System.out.println("Start Date " + startDate + " End Date " + endDate);
             // Create the date range filter
             Bson filter = new Document("orderDate", new Document("$gte", startDate).append("$lte", endDate));
 
@@ -464,6 +464,11 @@ public class DataAdapterMongo implements DataAdapterInterface{
     }
 
     @Override
+    public User loadUser(int userID) {
+        return null;
+    }
+
+    @Override
     public String[][] loadAllUsersData() throws SQLException {
         return new String[0][];
     }
@@ -498,4 +503,16 @@ public class DataAdapterMongo implements DataAdapterInterface{
         return false;
     }
 
+    @Override
+    public List<User> loadAllUsers() {
+        return List.of();
+    }
+
+    public List<Supplier> loadAllSuppliers(){
+        return List.of();
+    }
+
+    public List<Product> loadProductsByPriceRange(double minPrice, double maxPrice) {
+        return null;
+    }
 }
