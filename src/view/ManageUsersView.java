@@ -175,8 +175,6 @@ public class ManageUsersView extends JFrame{
         bottomPanel.setBackground(mainColor);
         this.add(bottomPanel, BorderLayout.SOUTH);
 
-        this.setVisible(true);
-
         /****************************** Frame ******************************/
     }
 

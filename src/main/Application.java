@@ -21,54 +21,36 @@ public class Application {
         }
         return instance;
     }
-    // Main components of this application
-
+    // Database adapters
     private Connection connection;
-
-    public Connection getConnection() {
-        return connection;
-    }
-
     private DataAdapter dataAdapterSQL;
-
     private DataAdapterMongo dataAdapterMongo;
 
-
-    private BuyerView checkoutScreen = new BuyerView();
-
+    // Views and controllers
     private MainScreen mainScreen;
-
-    private SupplierView supplierView = new SupplierView();
-
-    private OrderReportView orderReportView = new OrderReportView();
-
-    private OrderDetailView orderDetailView;
-
-    private ProductDetailView productDetailView = new ProductDetailView();
-
-    private User currentUser = null;
-
-    public LoginController loginController;
-
+    private LoginController loginController;
     private ProductController productController;
-
     private OrderReportController orderReportController;
-
     private CheckoutController checkoutController;
-
     private ManageUsersController manageUsersController;
-
     private ManageUsersView manageUsersView;
-
     private CustomerEditController customerEditController;
-
     private CustomerEditView customerEditView;
-
     private CustomerBuyerView customerBuyerView;
-
     private CustomerBuyerController customerBuyerController;
+    private ManageShippersController manageShippersController;
+    private ManageShippersView manageShippersView;
+    private OrderDetailView orderDetailView;
+    private BuyerView checkoutScreen;
+    private SupplierView supplierView;
+    private OrderReportView orderReportView;
+    private ProductDetailView productDetailView;
 
-    public LoginScreen loginScreen = new LoginScreen();
+    // Login screen
+    private LoginScreen loginScreen = new LoginScreen();
+
+    // Singleton user and state variables
+    private User currentUser = null;
 
     public LoginScreen getLoginScreen() {
         return loginScreen;
@@ -110,6 +92,14 @@ public class Application {
         return productController;
     }
 
+    public ManageShippersView getManageShippersView(){
+        return manageShippersView;
+    }
+
+    public ManageShippersController getManageShippersController(){
+        return manageShippersController;
+    }
+
     public CheckoutController getCheckoutController() {
         return checkoutController;
     }
@@ -124,11 +114,6 @@ public class Application {
         return orderReportController;
     }
 
-//    private AllProductController allProductController;
-
-//    public AllProductController getAllProductController(){
-//        return allProductController;
-//    }
 
     public DataAdapter getDataAdapterSQL() {
         return dataAdapterSQL;
@@ -161,10 +146,6 @@ public class Application {
     public void setSupplierController(SupplierController supplierController) {
         this.supplierController = supplierController;
     }
-
-//    public void setAllProductController(AllProductController allProductController) {
-//        this.allProductController = allProductController;
-//    }
 
     public ManageUsersController getManageUsersController() {
         return manageUsersController;
@@ -223,7 +204,6 @@ public class Application {
 
         catch (SQLException ex) {
             System.out.println("SQLite database is not ready. System exits with error!" + ex.getMessage());
-
             System.exit(2);
         }
 
@@ -234,20 +214,25 @@ public class Application {
         // Initialize controllers and views AFTER successful login
         mainScreen = new MainScreen(this.dataAdapterSQL, this.dataAdapterMongo);
         if (this.getCurrentUser().getRole() != User.UserRole.Customer){
+            productDetailView = new ProductDetailView();
             productController = new ProductController(this.productDetailView, dataAdapterSQL);
 
+            checkoutScreen = new BuyerView();
             checkoutController = new CheckoutController(checkoutScreen, dataAdapterSQL, dataAdapterMongo);
 
-//            allProductController = new AllProductController(productDetailView, dataAdapterSQL);
             if (this.getCurrentUser().getRole() == User.UserRole.Manager){
                 orderDetailView = new OrderDetailView(this.dataAdapterMongo, this.dataAdapterSQL);
+                orderReportView = new OrderReportView();
                 orderReportController = new OrderReportController(orderReportView, orderDetailView, dataAdapterMongo);
 
+                supplierView = new SupplierView();
                 supplierController = new SupplierController(supplierView);
 
                 manageUsersView = new ManageUsersView();
+                manageUsersController = new ManageUsersController(manageUsersView);
 
-                this.manageUsersController = new ManageUsersController(manageUsersView);
+                manageShippersView = new ManageShippersView();
+                manageShippersController = new ManageShippersController(manageShippersView);
             }
         }
         else if (this.getCurrentUser().getRole() == User.UserRole.Customer){
@@ -258,6 +243,7 @@ public class Application {
             this.customerBuyerView = new CustomerBuyerView();
             this.customerBuyerController = new CustomerBuyerController(customerBuyerView);
 
+            orderReportView = new OrderReportView();
             orderDetailView = new OrderDetailView(this.dataAdapterMongo, this.dataAdapterSQL);
             orderReportController = new OrderReportController(orderReportView, orderDetailView, dataAdapterMongo);
         }

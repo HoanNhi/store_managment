@@ -26,7 +26,6 @@ public class ManageUsersController implements ActionListener {
         manageUsersView.getDeleteUserButton().addActionListener(this);
         manageUsersView.getUpdateUserButton().addActionListener(this);
 
-        // Load all users when the controller is initialized
         loadAllUsers();
     }
 
@@ -35,15 +34,15 @@ public class ManageUsersController implements ActionListener {
         if (e.getSource().equals(manageUsersView.getCreateUserButton())) {
             createUser();
             manageUsersView.clearInputBoxes();
-            loadAllUsers(); // Refresh after creation
+            loadAllUsers();
         } else if (e.getSource().equals(manageUsersView.getDeleteUserButton())) {
             deleteUser();
             manageUsersView.clearInputBoxes();
-            loadAllUsers(); // Refresh after deletion
+            loadAllUsers();
         } else if (e.getSource().equals(manageUsersView.getUpdateUserButton())) {
             updateUser();
             manageUsersView.clearInputBoxes();
-            loadAllUsers(); // Refresh after update
+            loadAllUsers();
         }
     }
 
@@ -70,7 +69,7 @@ public class ManageUsersController implements ActionListener {
                         JSONObject userJson = usersArray.getJSONObject(i);
                         userData[i][0] = String.valueOf(userJson.getInt("userID"));
                         userData[i][1] = userJson.getString("username");
-                        userData[i][2] = userJson.optString("password", ""); // Optional
+                        userData[i][2] = userJson.optString("password", "");
                         userData[i][3] = userJson.getString("firstName");
                         userData[i][4] = userJson.getString("lastName");
                         userData[i][5] = userJson.getString("email");

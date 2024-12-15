@@ -6,6 +6,7 @@ import adapter.*;
 import structure.Order;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import structure.OrderItem;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -43,9 +44,74 @@ public class SaleManagement implements HttpHandler {
 
     private void handleGet(HttpExchange exchange) throws IOException {
         String query = exchange.getRequestURI().getQuery();
+        JSONObject jsonResponse;
 
-        if (query != null && query.contains("startDate") && query.contains("endDate")) {
-            // Extract startDate and endDate from query parameters
+        try {
+            if (query != null && query.contains("orderID=")) {
+                // Extract the orderID from the query parameters
+                String[] params = query.split("=");
+                int orderID = Integer.parseInt(params[1]);
+
+                // Load the order using the data adapter
+                Order order = dataAdapter.loadOrder(orderID);
+
+                if (order != null) {
+                    // Convert order and its items to JSON
+                    jsonResponse = convertOrderToJson(order);
+                    sendJsonResponse(exchange, 200, jsonResponse.toString());
+                } else {
+                    // Order not found
+                    sendResponse(exchange, 404, "Order not found.");
+                }
+            } else if (query != null && query.contains("startDate") && query.contains("endDate")) {
+                // Handle date range query (already implemented)
+                handleDateRangeQuery(exchange, query);
+            } else {
+                // Load all orders
+                List<Order> orders = dataAdapter.loadAllOrders();
+                JSONArray jsonArray = new JSONArray();
+
+                for (Order order : orders) {
+                    jsonArray.put(convertOrderToJson(order));
+                }
+
+                sendJsonResponse(exchange, 200, jsonArray.toString());
+            }
+        } catch (NumberFormatException e) {
+            sendResponse(exchange, 400, "Invalid orderID format. Must be an integer.");
+        } catch (Exception e) {
+            sendResponse(exchange, 500, "Internal Server Error: " + e.getMessage());
+        }
+    }
+
+    private JSONObject convertOrderToJson(Order order) {
+        JSONObject orderJson = new JSONObject();
+        orderJson.put("orderID", order.getOrderID());
+        orderJson.put("customerID", order.getCustomerID());
+        orderJson.put("orderDate", order.getDate().toString());
+        orderJson.put("totalPrice", order.getTotalCost());
+        orderJson.put("address", order.getAddress());
+        orderJson.put("shipper", order.getShipperName());
+
+        // Convert order items to JSON array
+        JSONArray itemsJsonArray = new JSONArray();
+        for (OrderItem item : order.getLines()) {
+            JSONObject itemJson = new JSONObject();
+            itemJson.put("orderItemID", item.getOrderItemID());
+            itemJson.put("productID", item.getProductID());
+            itemJson.put("productName", item.getProductName());
+            itemJson.put("quantity", item.getQuantity());
+            itemJson.put("unitCost", item.getUnitCost());
+            itemJson.put("totalCost", item.getCost());
+            itemsJsonArray.put(itemJson);
+        }
+        orderJson.put("Item", itemsJsonArray);
+
+        return orderJson;
+    }
+
+    private void handleDateRangeQuery(HttpExchange exchange, String query) throws IOException {
+        try {
             String[] params = query.split("&");
             String startDateStr = null, endDateStr = null;
 
@@ -59,52 +125,25 @@ public class SaleManagement implements HttpHandler {
             }
 
             if (startDateStr != null && endDateStr != null) {
-                try {
-                    // Parse the dates
-                    Date startDate = Date.valueOf(startDateStr); // Assumes yyyy-MM-dd format
-                    Date endDate = Date.valueOf(endDateStr);
+                // Parse the dates
+                Date startDate = Date.valueOf(startDateStr);
+                Date endDate = Date.valueOf(endDateStr);
 
-                    // Filter orders by date range
-                    List<Order> orders = dataAdapter.loadOrdersByDateRange(startDate, endDate);
-                    JSONArray jsonArray = new JSONArray();
+                // Query orders by date range
+                List<Order> orders = dataAdapter.loadOrdersByDateRange(startDate, endDate);
+                JSONArray jsonArray = new JSONArray();
 
-                    for (Order order : orders) {
-                        JSONObject orderJson = new JSONObject();
-                        orderJson.put("orderID", order.getOrderID());
-                        orderJson.put("customerID", order.getCustomerID());
-                        orderJson.put("orderDate", order.getDate().toString());
-                        orderJson.put("totalPrice", order.getTotalCost());
-                        orderJson.put("address", order.getAddress());
-                        orderJson.put("shipper", order.getShipperName());
-                        jsonArray.put(orderJson);
-                    }
-
-                    sendJsonResponse(exchange, 200, jsonArray.toString());
-                    return;
-
-                } catch (IllegalArgumentException e) {
-                    sendResponse(exchange, 400, "Invalid date format. Use yyyy-MM-dd.");
-                    return;
+                for (Order order : orders) {
+                    jsonArray.put(convertOrderToJson(order));
                 }
+
+                sendJsonResponse(exchange, 200, jsonArray.toString());
+            } else {
+                sendResponse(exchange, 400, "Missing startDate or endDate parameters.");
             }
+        } catch (IllegalArgumentException e) {
+            sendResponse(exchange, 400, "Invalid date format. Use yyyy-MM-dd.");
         }
-
-        // If no date range specified, return all orders
-        List<Order> orders = dataAdapter.loadAllOrders();
-        JSONArray jsonArray = new JSONArray();
-
-        for (Order order : orders) {
-            JSONObject orderJson = new JSONObject();
-            orderJson.put("orderID", order.getOrderID());
-            orderJson.put("customerID", order.getCustomerID());
-            orderJson.put("orderDate", order.getDate().toString());
-            orderJson.put("totalPrice", order.getTotalCost());
-            orderJson.put("address", order.getAddress());
-            orderJson.put("shipper", order.getShipperName());
-            jsonArray.put(orderJson);
-        }
-
-        sendJsonResponse(exchange, 200, jsonArray.toString());
     }
 
     private void handlePost(HttpExchange exchange) throws IOException {
@@ -116,7 +155,7 @@ public class SaleManagement implements HttpHandler {
         order.setCustomerID(json.getInt("customerID"));
         order.setTotalCost(json.getDouble("totalPrice"));
         order.setAddress(json.getString("address"));
-        order.setShipperName(json.getString("shipper"));
+        order.setCompanyName(json.getString("shipper"));
 
         boolean success = dataAdapter.saveOrder(order);
         sendResponse(exchange, success ? 201 : 500, success ? "Order created successfully" : "Failed to create order");
@@ -131,7 +170,7 @@ public class SaleManagement implements HttpHandler {
         order.setCustomerID(json.getInt("customerID"));
         order.setTotalCost(json.getDouble("totalPrice"));
         order.setAddress(json.getString("address"));
-        order.setShipperName(json.getString("shipper"));
+        order.setCompanyName(json.getString("shipper"));
 
         boolean success = dataAdapter.saveOrder(order); // MongoDB uses the same method for update
         sendResponse(exchange, success ? 200 : 500, success ? "Order updated successfully" : "Failed to update order");

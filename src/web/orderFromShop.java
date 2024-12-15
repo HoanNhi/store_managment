@@ -111,12 +111,12 @@ public class orderFromShop implements HttpHandler {
 
     private Order jsonToOrder(JSONObject json) {
         Order order = new Order();
-        order.setOrderID(json.getInt("orderID"));
+//        order.setOrderID(json.getInt("orderID"));
         order.setCustomerID(json.getInt("customerID"));
         order.setDate(Timestamp.valueOf(LocalDateTime.now()));
         order.setTotalCost(json.getDouble("totalCost"));
         order.setAddress(json.getString("address"));
-        order.setShipperName(json.getString("shipperName"));
+        order.setCompanyName(json.getString("companyName"));
 
         JSONArray items = json.getJSONArray("items");
         for (int i = 0; i < items.length(); i++) {

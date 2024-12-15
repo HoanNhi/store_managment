@@ -1,6 +1,6 @@
 package controller;
 
-import main.Application;
+import main.Customer_App;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import structure.Order;
@@ -13,6 +13,7 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -20,8 +21,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 public class CustomerBuyerController implements ActionListener {
     private CustomerBuyerView view;
@@ -36,6 +35,7 @@ public class CustomerBuyerController implements ActionListener {
         view.getBtnLoadProducts().addActionListener(this);
 
         order = new Order();
+        order.setCustomerID(Customer_App.getInstance().getCurrentUser().getUserID());
     }
 
     @Override
@@ -120,18 +120,27 @@ public class CustomerBuyerController implements ActionListener {
             }
 
             JSONObject jsonOrder = new JSONObject();
-            jsonOrder.put("customerID", Application.getInstance().getCurrentUser().getUserID());
-            jsonOrder.put("address", address);
-            jsonOrder.put("shipperName", selectedShipper);
+            order.setAddress(address);
+            order.setCompanyName(selectedShipper);
+            order.setDate(Timestamp.valueOf(LocalDateTime.now()));
+            jsonOrder.put("customerID", Customer_App.getInstance().getCurrentUser().getUserID());
+            jsonOrder.put("address", order.getAddress());
+            jsonOrder.put("shipper", order.getShipperName());
+            jsonOrder.put("orderDate", order.getDate());
+            jsonOrder.put("totalPrice", order.getTotalCost());
+            jsonOrder.put("totalItem", order.getLines().size());
 
             JSONArray items = new JSONArray();
             for (OrderItem line : order.getLines()) {
                 JSONObject jsonItem = new JSONObject();
                 jsonItem.put("productID", line.getProductID());
+                jsonItem.put("productName", line.getProductName());
                 jsonItem.put("quantity", line.getQuantity());
+                jsonItem.put("unitPrice", line.getUnitCost());
+                jsonItem.put("totalPrice", line.getCost());
                 items.put(jsonItem);
             }
-            jsonOrder.put("items", items);
+            jsonOrder.put("Item", items);
 
             URL url = new URL("http://localhost:8000/orderCustomer");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -139,12 +148,23 @@ public class CustomerBuyerController implements ActionListener {
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setDoOutput(true);
 
+            System.out.println("Request Method: " + connection.getRequestMethod());
+            System.out.println("Request Property Content-Type: " + connection.getRequestProperty("Content-Type"));
+
+            if (connection == null) {
+                throw new IOException("Failed to initialize connection object.");
+            }
+
             try (OutputStream os = connection.getOutputStream()) {
                 os.write(jsonOrder.toString().getBytes(StandardCharsets.UTF_8));
             }
 
+            int responseCode = connection.getResponseCode();
+            System.out.println("Response Code: " + responseCode);
+
             if (connection.getResponseCode() == 201) {
                 JOptionPane.showMessageDialog(null, "Order placed successfully!");
+                Customer_App.getInstance().getCustomerOrderReportController().refreshOrder();
                 view.clearOrder();
                 order = new Order();
             } else {

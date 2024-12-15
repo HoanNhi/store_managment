@@ -7,8 +7,6 @@ import structure.User;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 public class CustomerEditView extends JDialog {
     private JTextField txtFirstName = new JTextField(20);
@@ -61,7 +59,7 @@ public class CustomerEditView extends JDialog {
         addInputComponent(panelFields, gc, "Card Number:", txtCardNumber);
         addInputComponent(panelFields, gc, "Expiry Year:", txtExpiryYear);
         addInputComponent(panelFields, gc, "Expiry Month:", txtExpiryMonth);
-        addInputComponent(panelFields, gc, "Card Type:", txtCSV);
+        addInputComponent(panelFields, gc, "CSV:", txtCSV);
 
         // Load customer data into fields
         loadCustomerData(customer);
@@ -161,13 +159,5 @@ public class CustomerEditView extends JDialog {
     public void setUser(User user){ this.user = user; }
     public void setCustomer(Customer customer){ this.customer = customer; }
 
-//    private void getCustomer(User user) {
-//        Customer customer = new Customer();
-//        customer.setFirstName(user.getFirstName());
-//        customer.setLastName(user.getLastName());
-//        customer.setPhone(user.getPhone());
-//        customer.setEmail(user.getEmail());
-//        customer.setAddress(user.getAddress());
-//    }
 
 }

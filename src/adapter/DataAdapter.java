@@ -1,9 +1,11 @@
 package adapter;
 
+import com.mongodb.client.MongoCollection;
 import structure.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import org.bson.Document;
 
 public class DataAdapter implements DataAdapterInterface {
     private Connection connection;
@@ -205,6 +207,31 @@ public class DataAdapter implements DataAdapterInterface {
 
         return products;
     }
+
+    public List<Product> loadProductsByCustomQuery(String whereClause) {
+        List<Product> products = new ArrayList<>();
+        String query = "SELECT * FROM Product WHERE " + whereClause;
+
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Product product = new Product();
+                    product.setProductID(resultSet.getInt("ProductID"));
+                    product.setName(resultSet.getString("Name"));
+                    product.setCategory(resultSet.getString("Category"));
+                    product.setPrice(resultSet.getDouble("Unit_price"));
+                    product.setQuantity(resultSet.getInt("Quantity"));
+                    product.setDescription(resultSet.getString("Description"));
+                    products.add(product);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(); // Log the exception
+        }
+
+        return products;
+    }
+
 
     public boolean saveProduct(Product product) {
         try {
@@ -768,7 +795,7 @@ public class DataAdapter implements DataAdapterInterface {
     }
 
     @Override
-    public Shipper loadShipper(int shipperID) {
+    public Document loadShipper(int shipperID) {
         return null;
     }
 
@@ -785,6 +812,19 @@ public class DataAdapter implements DataAdapterInterface {
     @Override
     public boolean updateCustomer(Customer customer) {
         return false;
+    }
+
+    @Override
+    public Document loadCustomerDoc(int userID){
+        return null;
+    }
+
+    public MongoCollection<Document> loadAllShippersDoc(){
+        return null;
+    }
+
+    public MongoCollection<Document> getCustomerCollection(){
+        return null;
     }
 
 //    public boolean deleteProductsBySupplier(int supplierID) {

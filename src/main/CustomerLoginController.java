@@ -1,30 +1,26 @@
 package main;
 
+import adapter.DataAdapter;
+import structure.User;
+import view.LoginScreen;
+
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.Cursor;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-
-import structure.User;
-import view.LoginScreen;
-import adapter.DataAdapter;
-
-public class LoginController implements ActionListener, ItemListener { // Implement ItemListener
+public class CustomerLoginController implements ActionListener, ItemListener { // Implement ItemListener
     private LoginScreen loginScreen;
     private DataAdapter dataAdapter;
     private String apiEndpoint = "http://localhost:8000/login"; // Your API endpoint
 
-    public LoginController(LoginScreen loginScreen, DataAdapter dataAdapter) {
+    public CustomerLoginController(LoginScreen loginScreen, DataAdapter dataAdapter) {
         this.loginScreen = loginScreen;
         this.dataAdapter = dataAdapter;
 
@@ -84,9 +80,9 @@ public class LoginController implements ActionListener, ItemListener { // Implem
                     User authenticatedUser = dataAdapter.loadUser(username, password);
 
                     if (authenticatedUser != null) {
-                        Application.getInstance().setCurrentUser(authenticatedUser);
-                        Application.getInstance().initializeAfterLogin(); // Initialize after login
-                        Application.getInstance().getMainScreen().setVisible(true);
+                        Customer_App.getInstance().setCurrentUser(authenticatedUser);
+                        Customer_App.getInstance().initializeAfterLogin(); // Initialize after login
+                        Customer_App.getInstance().getCustomerMainScreen().setVisible(true);
                         loginScreen.setVisible(false);  // Hide login screen
                         loginScreen.clearField(); // Clear after successful login
                     } else {

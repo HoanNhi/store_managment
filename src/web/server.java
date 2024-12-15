@@ -58,6 +58,10 @@ public class server {
 
             server.createContext("/editCustomer", new CustomerEditAPI(dataAdapterMongo, dataAdapterSQL));
 
+            server.createContext("/customer", new CustomerQuery(dataAdapterMongo));
+
+            server.createContext("/shippers", new ShipperQuery(dataAdapterMongo));
+
             // Optionally, create context for other endpoints like /register, /sales-report, etc.
 
             // Set executor to handle multiple requests concurrently

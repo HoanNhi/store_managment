@@ -2,8 +2,6 @@ package structure;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.sql.Timestamp;
 
 
@@ -74,8 +72,8 @@ public class Order {
         return shipperName;
     }
 
-    public void setShipperName(String shipperName) {
-        this.shipperName = shipperName;
+    public void setCompanyName(String companyName) {
+        this.shipperName = companyName;
     }
 
     public String getAddress() {

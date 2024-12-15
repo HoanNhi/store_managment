@@ -13,7 +13,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 
-public class OrderReportView extends JFrame {
+public class CustomerOrderReportView extends JFrame {
     private JTable orderTable;
     private DefaultTableModel tableModel;
     private JTextField txtOrderID = new JTextField(10);
@@ -23,7 +23,7 @@ public class OrderReportView extends JFrame {
     private JTextField txtEndDate;
     private JButton btnFilterByDate;
 
-    public OrderReportView() {
+    public CustomerOrderReportView() {
         this.setTitle("Order Report");
         this.setSize(800, 600);
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Close only this window

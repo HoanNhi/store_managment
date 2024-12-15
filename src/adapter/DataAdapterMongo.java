@@ -1,10 +1,7 @@
 package adapter;
 import com.mongodb.client.*;
-import com.mongodb.client.result.UpdateResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.BsonDocument;
-import org.bson.BsonInt64;
 import com.mongodb.MongoException;
 
 import structure.*;
@@ -62,6 +59,15 @@ public class DataAdapterMongo implements DataAdapterInterface{
         }
     }
 
+    public Document loadCustomerDoc(int userID){
+        MongoCollection<Document> customersCollection = database.getCollection("Customer");
+
+        // Find the customer document
+        Document filter = new Document("userID", userID); // Filter by customerID
+        Document customerDoc = customersCollection.find(filter).first();
+        return customerDoc;
+    }
+
     public boolean updateCustomer(Customer customer) {
         try{
             MongoCollection<Document> customersCollection = database.getCollection("Customer");
@@ -93,7 +99,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
         } catch (MongoException e) {
             System.err.println("Error updating customer: " + e.getMessage());
             e.printStackTrace();
-            return false; // Or throw an exception
+            return false;
         }
     }
 
@@ -121,8 +127,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
 
         } catch (MongoException e) {
             System.err.println("Error creating customer: " + e.getMessage());
-            // ... other error handling (e.g., check for duplicate key) ...
-            return false; // Or throw an exception
+            return false; 
         }
     }
 
@@ -136,84 +141,35 @@ public class DataAdapterMongo implements DataAdapterInterface{
         return false;
     }
 
-//    public boolean createOrder(Order order) {
-//            MongoCollection<Document> ordersCollection = database.getCollection("Order");
-//
-//            // Get the next orderID (auto-increment)
-//            int nextOrderID = getNextOrderID(ordersCollection);
-//            order.setOrderID(nextOrderID); // Set the orderID in the Order object
-//
-//
-//            // Create the main order document
-//            Document orderDoc = new Document("orderID", nextOrderID)
-//                    .append("customerID", order.getCustomerID())
-//                    .append("orderDate", order.getDate());
-//
-//
-//            Document itemsDoc = new Document(); // Create the "Item" document
-//            List<OrderItem> orderItems = order.getLines(); // Assuming Order has a getItems() method
-//            for (int i = 0; i < orderItems.size(); i++) {
-//                OrderItem item = orderItems.get(i);
-//                Document itemDoc = new Document("productID", item.getProductID())
-//                        .append("productName", item.getProductName())
-//                        .append("Quantity", item.getQuantity())
-//                        .append("unitPrice", item.getUnitCost())
-//                        .append("totalPrice", item.getUnitCost()*item.getQuantity());
-//                itemsDoc.append(String.valueOf(i + 1), itemDoc);  // Use 1-based index as key
-//            }
-//            orderDoc.append("Item", itemsDoc);
-//
-//            orderDoc.append("totalItems", order.getLines().size());
-//            orderDoc.append("totalPrice", order.getTotalCost());
-//
-//
-//            ordersCollection.insertOne(orderDoc);
-//            return true;
-//    }
+    @Override
+    public MongoCollection<Document> getCustomerCollection(){
+        MongoCollection<Document> customersCollection = database.getCollection("Customer");
+        return customersCollection;
+    }
 
-    public Shipper loadShipper(int shipperID) {
-        try {
+
+    public Document loadShipper(int shipperID) {
             MongoCollection<Document> shippersCollection = database.getCollection("Shipper");
             Document filter = new Document("shipperID", shipperID);
             Document shipperDoc = shippersCollection.find(filter).first();
-
-            if (shipperDoc != null) {
-                Shipper shipper = new Shipper();
-                shipper.setShipperID(shipperDoc.getInteger("shipperID"));
-                shipper.setShipperName(shipperDoc.getString("companyName")); // Assuming "companyName" in MongoDB
-                shipper.setPricePerKM(shipperDoc.getDouble("pricePerKM"));
-                return shipper;
-            } else {
-                return null; // Shipper not found
-            }
-
-        } catch (MongoException e) {
-            System.err.println("Error loading shipper: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
+            return shipperDoc;
     }
 
     public List<Shipper> loadAllShippers() {
-        List<Shipper> shippers = new ArrayList<>();
+        return null;
+    }
+
+    public MongoCollection<Document> loadAllShippersDoc() {
         try {
             MongoCollection<Document> shippersCollection = database.getCollection("Shipper");
-            FindIterable<Document> documents = shippersCollection.find(); // Find all documents
-
-            for (Document shipperDoc : documents) {
-                Shipper shipper = new Shipper();
-                shipper.setShipperID(shipperDoc.getInteger("shipperID"));
-                shipper.setShipperName(shipperDoc.getString("companyName"));
-                shipper.setPricePerKM(shipperDoc.getDouble("pricePerKM"));
-                shippers.add(shipper);
-            }
+            return shippersCollection;
 
         } catch (MongoException e) {
             System.err.println("Error loading all shippers: " + e.getMessage());
             e.printStackTrace();
             // Handle the error as needed (e.g., return null or an empty list)
         }
-        return shippers;
+        return null;
     }
 
     public boolean deleteShipper(int shipperID) {
@@ -227,7 +183,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
         } catch (MongoException e) {
             System.err.println("Error deleting shipper: " + e.getMessage());
             e.printStackTrace();
-            return false;  // Or throw an exception
+            return false;  
         }
     }
 
@@ -328,7 +284,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
 
                 order.setTotalCost(orderDoc.getDouble("totalPrice"));
                 order.setAddress(orderDoc.getString("address"));
-                order.setShipperName(orderDoc.getString("shipper")); // Assuming Order has setShipper
+                order.setCompanyName(orderDoc.getString("shipper")); // Assuming Order has setShipper
 
                 orders.add(order);
             }
@@ -398,7 +354,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
 
                 order.setTotalCost(orderDoc.getDouble("totalPrice"));
                 order.setAddress(orderDoc.getString("address"));
-                order.setShipperName(orderDoc.getString("shipper"));
+                order.setCompanyName(orderDoc.getString("shipper"));
 
                 return order;
             } else {
@@ -446,7 +402,7 @@ public class DataAdapterMongo implements DataAdapterInterface{
 
                 order.setTotalCost(orderDoc.getDouble("totalPrice"));
                 order.setAddress(orderDoc.getString("address"));
-                order.setShipperName(orderDoc.getString("shipper")); // Assuming Order has setShipper
+                order.setCompanyName(orderDoc.getString("shipper")); // Assuming Order has setShipper
 
                 orders.add(order);
             }
@@ -513,6 +469,10 @@ public class DataAdapterMongo implements DataAdapterInterface{
     }
 
     public List<Product> loadProductsByPriceRange(double minPrice, double maxPrice) {
+        return null;
+    }
+
+    public List<Product> loadProductsByCustomQuery(String query) {
         return null;
     }
 }

@@ -9,8 +9,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 
 import adapter.DataAdapterMongo;
 import org.json.JSONArray;
@@ -18,27 +16,23 @@ import org.json.JSONObject;
 import structure.Order;
 import structure.OrderItem;
 import structure.Product;
-import structure.Customer;
 import view.BuyerView;
 import view.CustomerView;
 import adapter.DataAdapter;
 
 public class CheckoutController implements ActionListener {
     private BuyerView view;
-    private DataAdapter dataAdapter; // to save and load product
     private Order order = null;
     private CustomerView customerView; // Add customer dialog
 
     public CheckoutController(BuyerView view, DataAdapter dataAdapter, DataAdapterMongo dataAdapterMongo) {
-        this.dataAdapter = dataAdapter;
         this.view = view;
-        this.customerView = new CustomerView(view, dataAdapterMongo);
+        this.customerView = new CustomerView(view);
 
         view.getBtnAdd().addActionListener(this);
         view.getBtnPay().addActionListener(this);
 
         order = new Order();
-
     }
 
 
@@ -46,17 +40,22 @@ public class CheckoutController implements ActionListener {
         if (e.getSource() == view.getBtnAdd())
             addProduct();
         else
-        if (e.getSource() == view.getBtnPay())
-            makeOrder();
+        if (e.getSource() == view.getBtnPay()) {
+            customerView.setVisible(true);
+            if (customerView.getCustomer() != null)
+                makeOrder();
+            else
+                JOptionPane.showMessageDialog(view, "Please select customer!");
+        }
     }
 
     private void makeOrder() {
         try {
             JSONObject orderJson = new JSONObject();
-            orderJson.put("customerID", order.getCustomerID());
+            orderJson.put("customerID", customerView.getCustomer().getCustomerID());
             orderJson.put("totalCost", order.getTotalCost());
             orderJson.put("address", customerView.getAddress());
-            orderJson.put("shipperName", customerView.getShipperName());
+            orderJson.put("companyName", customerView.getCompanyName());
 
             JSONArray items = new JSONArray();
             for (OrderItem item : order.getLines()) {
@@ -81,14 +80,14 @@ public class CheckoutController implements ActionListener {
             }
 
             if (connection.getResponseCode() == 201) {
-                JOptionPane.showMessageDialog(null, "Order added successfully");
+                JOptionPane.showMessageDialog(view, "Order added successfully");
                 view.clearOrder();
                 order = new Order();
             } else {
-                JOptionPane.showMessageDialog(null, "Failed to create order");
+                JOptionPane.showMessageDialog(view, "Failed to create order");
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+            JOptionPane.showMessageDialog(view, "Error: " + e.getMessage());
         }
     }
 
@@ -96,7 +95,7 @@ public class CheckoutController implements ActionListener {
         try {
             String id = JOptionPane.showInputDialog("Enter ProductID: ");
             if (id == null || id.trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Product ID cannot be empty!");
+                JOptionPane.showMessageDialog(view, "Product ID cannot be empty!");
                 return;
             }
 
@@ -119,7 +118,7 @@ public class CheckoutController implements ActionListener {
                 Product product = new Product();
                 product.setProductID(productJson.getInt("productID"));
                 product.setName(productJson.getString("name"));
-                product.setPrice(productJson.getDouble("price"));
+                product.setPrice(productJson.getDouble("unitPrice"));
                 product.setQuantity(productJson.getInt("quantity"));
 
                 // Prompt for quantity
@@ -151,10 +150,10 @@ public class CheckoutController implements ActionListener {
                 this.view.getLabTotal().setText("Total: $" + order.getTotalCost());
                 this.view.invalidate();
             } else {
-                JOptionPane.showMessageDialog(null, "Product not found or API call failed. Response code: " + connection.getResponseCode());
+                JOptionPane.showMessageDialog(view, "Product not found or API call failed. Response code: " + connection.getResponseCode());
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+            JOptionPane.showMessageDialog(view, "Error: " + e.getMessage());
         }
     }
 

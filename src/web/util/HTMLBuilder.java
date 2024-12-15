@@ -54,6 +54,7 @@ public class HTMLBuilder {
                     .append("<td>").append(product.getCategory()).append("</td>")
                     .append("<td>").append(product.getPrice()).append("</td>")
                     .append("<td>").append(product.getQuantity()).append("</td>")
+                    .append("<td>").append(product.getDescription()).append("</td>")
                     .append("</tr>");
         }
         return this;

@@ -1,5 +1,7 @@
 package adapter;
 
+import com.mongodb.client.MongoCollection;
+import org.bson.Document;
 import structure.*;
 
 import java.sql.SQLException;
@@ -23,6 +25,7 @@ public interface DataAdapterInterface {
     boolean deleteOrder(int orderID);
     List<Order> loadOrdersByDateRange(Date startDate, Date endDate);
     List<Product> loadProductsByPriceRange(double minPrice, double maxPrice);
+    List<Product> loadProductsByCustomQuery(String query);
 
     //User related functions
     User loadUser(String username, String password);
@@ -44,11 +47,14 @@ public interface DataAdapterInterface {
     boolean createCustomer(Customer customer);
     boolean saveCustomer(Customer customer);
     boolean deleteCustomer(int customerID);
+    Document loadCustomerDoc(int userID);
+    MongoCollection<Document> getCustomerCollection();
 
     //Shipper related functions
-    Shipper loadShipper(int shipperID);
+    Document loadShipper(int shipperID);
     List<Shipper> loadAllShippers();
     boolean deleteShipper(int shipperID);
+    MongoCollection<Document> loadAllShippersDoc();
 
 
     boolean updateCustomer(Customer updatedCustomer);

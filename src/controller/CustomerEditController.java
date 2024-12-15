@@ -1,13 +1,11 @@
 package controller;
 
-import main.Application;
+import main.Customer_App;
 import structure.Customer;
 import structure.User;
 import view.CustomerEditView;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -65,7 +63,7 @@ public class CustomerEditController {
 
     private void loadCustomerInformation() {
         try {
-            int customerID = Application.getInstance().getCurrentUser().getUserID();
+            int customerID = Customer_App.getInstance().getCurrentUser().getUserID();
 
             // Send HTTP GET request to retrieve customer information
             URL url = new URL("http://localhost:8000/editCustomer?customerID=" + customerID);
@@ -102,7 +100,7 @@ public class CustomerEditController {
     }
 
     private User getUpdatedUser() {
-        User user = Application.getInstance().getCurrentUser();
+        User user = Customer_App.getInstance().getCurrentUser();
         return user;
     }
 

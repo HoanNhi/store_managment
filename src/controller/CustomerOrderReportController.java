@@ -2,40 +2,40 @@
 package controller;
 
 
-import adapter.*;
-import main.Application;
+import adapter.DataAdapterInterface;
+import main.Customer_App;
+import main.Customer_App;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import structure.Order;
+import structure.OrderItem;
 import structure.User;
-import view.OrderReportView;
-import view.OrderDetailView;
+import view.CustomerOrderDetailView;
+import view.CustomerOrderReportView;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.io.IOException;
-import java.net.URL;
-import java.net.HttpURLConnection;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.sql.Timestamp;
 
-public class OrderReportController implements ActionListener {
+public class CustomerOrderReportController implements ActionListener {
 
+    private CustomerOrderReportView orderReportView;
+    private CustomerOrderDetailView orderDetailView;
+    List<Order> orders = new ArrayList<>();
 
-    private DataAdapterInterface dataAdapter;
-    private OrderReportView orderReportView;
-    private OrderDetailView orderDetailView;
-
-
-    public OrderReportController(OrderReportView reportView, OrderDetailView detailView, DataAdapterInterface dataAdapter) {
-        this.dataAdapter = dataAdapter;
+    public CustomerOrderReportController(CustomerOrderReportView reportView, CustomerOrderDetailView detailView) {
         this.orderReportView = reportView;
         this.orderDetailView = detailView;
         orderReportView.getBtnViewDetails().addActionListener(this);
@@ -43,16 +43,15 @@ public class OrderReportController implements ActionListener {
         orderReportView.getBtnFilterByDate().addActionListener(this);
 
         // Load and display order data
-        List<Order> orders = dataAdapter.loadAllOrders();
-
-        if (Application.getInstance().getCurrentUser().getRole() == User.UserRole.Customer){
-            orders = orders.stream()
-                    .filter(order -> order.getCustomerID() == Application.getInstance().getCurrentUser().getUserID())
-                    .collect(Collectors.toList());
-        }
+        orders = loadOrdersFromAPI().stream()
+                .filter(order -> order.getCustomerID() == Customer_App.getInstance().getCurrentUser().getUserID())
+                .collect(Collectors.toList());
         if (orders != null){
             System.out.println("Total order "+ orders.size());
             orderReportView.setOrders(orders);
+        }
+        else{
+            orders = new ArrayList<>();
         }
     }
 
@@ -90,8 +89,18 @@ public class OrderReportController implements ActionListener {
         }
     }
 
+    public void refreshOrder(){
+        this.orders = loadOrdersFromAPI().stream()
+                .filter(order -> order.getCustomerID() == Customer_App.getInstance().getCurrentUser().getUserID())
+                .collect(Collectors.toList());
+        orderReportView.setOrders(this.orders);
+    }
+
     private void showOrderDetails(int orderId){
-        Order order = dataAdapter.loadOrder(orderId);
+        Order order = this.orders.stream()
+                .filter(o -> o.getOrderID() == orderId)
+                .findFirst()
+                .orElse(null);
 
         if (order != null) {
             orderDetailView.setOrder(order);
@@ -137,6 +146,7 @@ public class OrderReportController implements ActionListener {
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
+
                     JSONArray jsonArray = new JSONArray(response.toString());
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject obj = jsonArray.getJSONObject(i);
@@ -146,9 +156,26 @@ public class OrderReportController implements ActionListener {
                         order.setTotalCost(obj.getDouble("totalPrice"));
                         order.setAddress(obj.getString("address"));
                         order.setCompanyName(obj.getString("shipper"));
+                        order.setDate(Timestamp.valueOf(obj.getString("orderDate")));
+                        // Parse items array
+                        JSONArray itemsArray = obj.getJSONArray("Item");
+                        for (int j = 0; j < itemsArray.length(); j++) {
+                            JSONObject itemObj = itemsArray.getJSONObject(j);
+                            OrderItem item = new OrderItem();
+                            item.setOrderItemID(itemObj.getInt("orderItemID"));
+                            item.setProductID(itemObj.getInt("productID"));
+                            item.setProductName(itemObj.getString("productName"));
+                            item.setQuantity(itemObj.getInt("quantity"));
+                            item.setUnitCost(itemObj.getDouble("unitCost"));
+                            item.setCost(itemObj.getDouble("totalCost"));
+                            order.addLine(item);
+                        }
+
                         orders.add(order);
                     }
                 }
+            } else {
+                JOptionPane.showMessageDialog(orderReportView, "Failed to fetch orders. Response code: " + connection.getResponseCode());
             }
         } catch (IOException e) {
             JOptionPane.showMessageDialog(orderReportView, "Error communicating with the server: " + e.getMessage());
@@ -209,6 +236,4 @@ public class OrderReportController implements ActionListener {
             e.printStackTrace();
         }
     }
-
-
 }

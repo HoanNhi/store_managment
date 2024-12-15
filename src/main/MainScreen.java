@@ -9,25 +9,22 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
 import java.util.List;
 
-
-
 public class MainScreen extends JFrame {
-    //Buttons for staff
+    // Buttons for staff
     private final JButton btnReport = new JButton("Report");
     private final JButton btnSales = new JButton("Sales");
     private final JButton btnSupplier = new JButton("Supplier");
     private final JButton btnInventory = new JButton("Inventory");
-    //Buttons for customer
+    private final JButton btnShippers = new JButton("Shippers");
+    // Buttons for customer
     private final JButton btnBuy = new JButton("Buy");
     private final JButton btnEditInfo = new JButton("Edit Information");
-    private final JButton btnViewOrderHistory = new JButton("View order history");
-    //Buttons for all
+    private final JButton btnViewOrderHistory = new JButton("View Order History");
+    // Buttons for all
     private final JButton btnLogOut = new JButton("Logout");
     private final JButton btnManageUsers = new JButton("Manage Users");
-    private JLabel storeImageLabel; // For displaying the store image
     private JLabel welcomeLabel; // Welcome label
     DataAdapter dataAdapter;
 
@@ -35,89 +32,68 @@ public class MainScreen extends JFrame {
         this.dataAdapter = dataAdapter;
         this.setLayout(new BorderLayout());
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setSize(800, 500);
+        this.setSize(800, 600);
 
-        // Left Panel for Buttons and Welcome Label
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BorderLayout());
-        buttonPanel.setPreferredSize(new Dimension(200, getHeight()));
-        buttonPanel.setBackground(Color.LIGHT_GRAY);
+        // Main Panel
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
 
-        // Bottom Panel for Buttons
-        JPanel bottomButtonPanel = new JPanel();
-        bottomButtonPanel.setLayout(new BoxLayout(bottomButtonPanel, BoxLayout.Y_AXIS));
-        bottomButtonPanel.setBackground(Color.LIGHT_GRAY);
+        // Welcome Panel
+        JPanel welcomePanel = new JPanel();
+        welcomePanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        welcomePanel.setBackground(new Color(60, 179, 113));
 
         User currentUser = Application.getInstance().getCurrentUser();
         if (currentUser != null) {
-            // Top Panel for Welcome Label
-            welcomeLabel = new JLabel("Welcome user " + Application.getInstance().getCurrentUser().getUsername());
-            welcomeLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            welcomeLabel.setFont(new Font("Arial", Font.BOLD, 14)); // Optional: Customize font
-            buttonPanel.add(welcomeLabel, BorderLayout.NORTH);
-
-            //Get role
-            User.UserRole role = currentUser.getRole();
-
-            if (role == User.UserRole.Manager) {
-                bottomButtonPanel.add(createButtonPanel(btnInventory));
-                bottomButtonPanel.add(createButtonPanel(btnSales));
-                bottomButtonPanel.add(createButtonPanel(btnReport));
-                bottomButtonPanel.add(createButtonPanel(btnSupplier));
-                bottomButtonPanel.add(createButtonPanel(btnManageUsers));
-            }
-            else if (role == User.UserRole.Seller){
-                bottomButtonPanel.add(createButtonPanel(btnInventory));
-                bottomButtonPanel.add(createButtonPanel(btnSales));
-            }
-            else if (role == User.UserRole.Customer){
-                bottomButtonPanel.add(createButtonPanel(btnBuy));
-                bottomButtonPanel.add(createButtonPanel(btnViewOrderHistory));
-                bottomButtonPanel.add(createButtonPanel(btnEditInfo));
-            }
-            bottomButtonPanel.add(createButtonPanel(btnLogOut)); // Logout for all roles
-            buttonPanel.add(bottomButtonPanel, BorderLayout.SOUTH);
-
+            welcomeLabel = new JLabel("Welcome, " + currentUser.getUsername());
+            welcomeLabel.setFont(new Font("Arial", Font.BOLD, 18));
+            welcomeLabel.setForeground(Color.WHITE);
+            welcomePanel.add(welcomeLabel);
         } else {
             System.err.println("Error: No user logged in.");
         }
 
-        // Center Panel for Store Image
-        JPanel imagePanel = new JPanel();
-        imagePanel.setLayout(new BorderLayout());
-        storeImageLabel = new JLabel();
-        storeImageLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        storeImageLabel.setVerticalAlignment(SwingConstants.CENTER);
+        // Button Panel
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(0, 1, 10, 10)); // Single column with spacing
+        buttonPanel.setBackground(new Color(245, 245, 245));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Load the image
-        String imagePath = "src\\main\\store.png";
-        File imageFile = new File(imagePath);
-        if (imageFile.exists()) {
-            try {
-                ImageIcon storeIcon = new ImageIcon(imageFile.getAbsolutePath());
-                Image scaledImage = storeIcon.getImage().getScaledInstance(400, 400, Image.SCALE_SMOOTH);
-                storeImageLabel.setIcon(new ImageIcon(scaledImage));
-            } catch (Exception e) {
-                storeImageLabel.setText("Error loading image: " + e.getMessage());
+        if (currentUser != null) {
+            User.UserRole role = currentUser.getRole();
+
+            if (role == User.UserRole.Manager) {
+                buttonPanel.add(styleButton(btnInventory));
+                buttonPanel.add(styleButton(btnSales));
+                buttonPanel.add(styleButton(btnReport));
+                buttonPanel.add(styleButton(btnSupplier));
+                buttonPanel.add(styleButton(btnShippers));
+                buttonPanel.add(styleButton(btnManageUsers));
+            } else if (role == User.UserRole.Seller) {
+                buttonPanel.add(styleButton(btnInventory));
+                buttonPanel.add(styleButton(btnSales));
+            } else if (role == User.UserRole.Customer) {
+                buttonPanel.add(styleButton(btnBuy));
+                buttonPanel.add(styleButton(btnViewOrderHistory));
+                buttonPanel.add(styleButton(btnEditInfo));
             }
-        } else {
-            storeImageLabel.setText("Store image not found: " + imagePath);
-            System.out.println("Current working directory: " + System.getProperty("user.dir"));
+            buttonPanel.add(styleButton(btnLogOut)); // Logout for all roles
         }
-        imagePanel.add(storeImageLabel, BorderLayout.CENTER);
 
-        // Add components to the frame
-        this.add(buttonPanel, BorderLayout.WEST); // Left panel for buttons and label
-        this.add(imagePanel, BorderLayout.CENTER); // Center panel for image
+        // Add Panels to Frame
+        mainPanel.add(welcomePanel, BorderLayout.NORTH);
+        mainPanel.add(buttonPanel, BorderLayout.CENTER);
+        this.add(mainPanel);
 
+        // Button Actions
         btnReport.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                List<Order> orders = dataAdapterMongo.loadAllOrders(); //Fetch orders
+                List<Order> orders = dataAdapterMongo.loadAllOrders(); // Fetch orders
                 if (!orders.isEmpty()) {
-                    Application.getInstance().getOrderReportView().setOrders(orders); //Set fetched data
+                    Application.getInstance().getOrderReportView().setOrders(orders); // Set fetched data
                     Application.getInstance().getOrderReportView().setVisible(true);
-                }
-                else{
+                } else {
                     JOptionPane.showMessageDialog(MainScreen.this, "No Order found. Create one!");
                 }
             }
@@ -131,17 +107,17 @@ public class MainScreen extends JFrame {
 
         btnSupplier.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                Application.getInstance().getSupplierView().setVisible(true); }
+                Application.getInstance().getSupplierView().setVisible(true);
+            }
         });
 
         btnInventory.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                List<Product> products = dataAdapter.loadAllProducts(); //Fetch products
+                List<Product> products = dataAdapter.loadAllProducts(); // Fetch products
                 if (!products.isEmpty()) {
-                    Application.getInstance().getProductDetailView().showProduct(products); //Set fetched data
+                    Application.getInstance().getProductDetailView().showProduct(products); // Set fetched data
                     Application.getInstance().getProductDetailView().setVisible(true);
-                }
-                else{
+                } else {
                     JOptionPane.showMessageDialog(MainScreen.this, "No Product Found");
                 }
             }
@@ -150,7 +126,7 @@ public class MainScreen extends JFrame {
         btnLogOut.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 Application.getInstance().setCurrentUser(null);
-                Application.getInstance().getMainScreen().setVisible(false);                      // Hide the MainScreen
+                Application.getInstance().getMainScreen().setVisible(false); // Hide the MainScreen
                 Application.getInstance().getLoginScreen().setVisible(true); // Show the LoginScreen
                 Application.getInstance().getMainScreen().dispose();
             }
@@ -184,14 +160,25 @@ public class MainScreen extends JFrame {
             }
         });
 
+        btnShippers.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Application.getInstance().getManageShippersView().setVisible(true);
+            }
+        });
     }
 
-    // Helper method to wrap buttons with spacing
-    private JPanel createButtonPanel(JButton button) {
+    private JPanel styleButton(JButton button) {
+        button.setFocusPainted(false);
+        button.setFont(new Font("Arial", Font.PLAIN, 16));
+        button.setBackground(new Color(70, 130, 180));
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
         JPanel panel = new JPanel();
         panel.setLayout(new FlowLayout(FlowLayout.CENTER));
-        panel.setMaximumSize(new Dimension(200, 50)); // Set a fixed height for buttons
         panel.add(button);
+        panel.setBackground(new Color(245, 245, 245));
         return panel;
     }
 }

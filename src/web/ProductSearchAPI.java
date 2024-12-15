@@ -39,7 +39,7 @@ public class ProductSearchAPI implements HttpHandler {
             String htmlPage = new HTMLBuilder()
                     .setTitle("Product Search Results")
                     .addHeader("Product Search Results")
-                    .startTable(new String[]{"Product ID", "Name", "Category", "Price", "Quantity"})
+                    .startTable(new String[]{"Product ID", "Name", "Category", "Unit Price", "Quantity", "Description"})
                     .addProductsToTable(products)
                     .endTable()
                     .build();
@@ -51,31 +51,31 @@ public class ProductSearchAPI implements HttpHandler {
     }
 
     private List<Product> fetchProducts(Map<String, String> queryParams) {
-        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-
-            if (key.equals("product_id")) {
-                int productId = Integer.parseInt(value);
-                Product product = dataAdapter.loadProduct(productId);
-                return product != null ? List.of(product) : List.of();
-            } else if (key.equals("price<")) {
-                double maxPrice = Double.parseDouble(value);
-                return dataAdapter.loadProductsByPriceRange(0, maxPrice);
-            } else if (key.equals("price>")) {
-                double minPrice = Double.parseDouble(value);
-                return dataAdapter.loadProductsByPriceRange(minPrice, Double.MAX_VALUE);
-            } else if (key.equals("price<=")) {
-                double maxPrice = Double.parseDouble(value);
-                return dataAdapter.loadProductsByPriceRange(0, maxPrice); // Inclusive range
-            } else if (key.equals("price>=")) {
-                double minPrice = Double.parseDouble(value);
-                return dataAdapter.loadProductsByPriceRange(minPrice, Double.MAX_VALUE); // Inclusive range
-            }
+        // Build the SQL WHERE clause based on query parameters
+        StringBuilder whereClause = new StringBuilder("1=1"); // Default WHERE clause
+        if (queryParams.containsKey("productId=")) {
+            whereClause.append(" AND ProductID = ").append(queryParams.get("productId="));
         }
-        return List.of(); // Default to empty if no matching query parameter is found
-    }
+        if (queryParams.containsKey("price<")) {
+            whereClause.append(" AND Unit_price < ").append(queryParams.get("price<"));
+        }
+        if (queryParams.containsKey("price>")) {
+            whereClause.append(" AND Unit_price > ").append(queryParams.get("price>"));
+        }
+        if (queryParams.containsKey("price<=")) {
+            whereClause.append(" AND Unit_price <= ").append(queryParams.get("price<="));
+        }
+        if (queryParams.containsKey("price>=")) {
+            whereClause.append(" AND Unit_price >= ").append(queryParams.get("price>="));
+        }
+        if (queryParams.containsKey("name=")) {
+            String name = queryParams.get("name=").replace("'", "''"); // Escape single quotes for SQL
+            whereClause.append(" AND Name LIKE '%").append(name).append("%'");
+        }
 
+        // Fetch filtered products
+        return dataAdapter.loadProductsByCustomQuery(whereClause.toString());
+    }
 
     private Map<String, String> parseQueryParams(String query) {
         Map<String, String> queryParams = new HashMap<>();
@@ -85,7 +85,6 @@ public class ProductSearchAPI implements HttpHandler {
 
         String[] pairs = query.split("&");
         for (String pair : pairs) {
-            // Check for valid operators in the key and extract the value
             String[] keyValue;
             if (pair.contains(">=")) {
                 keyValue = pair.split(">=", 2);
@@ -115,8 +114,6 @@ public class ProductSearchAPI implements HttpHandler {
         }
         return queryParams;
     }
-
-
 
     private void sendResponse(HttpExchange exchange, int statusCode, String response, String contentType) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", contentType);
